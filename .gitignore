@@ -1,2 +1,7 @@
 .env
 /docs
+
+/.knowns/
+/.agents/
+AGENTS.md
+KNOWNS.md
