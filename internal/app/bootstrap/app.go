@@ -23,7 +23,7 @@ func NewApp() (*App, error) {
 		return nil, err
 	}
 
-	// return 
+	// return
 	return &App{
 		Config: cfg,
 		DB:     db,
