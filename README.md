@@ -85,7 +85,15 @@ http://localhost:8080/auth/health
 
 These tests verify that all PostgreSQL constraints (unique indexes, foreign keys, and cascade deletes) in the auth schema are working correctly. They run against a **real database** — no mocks.
 
-**Prerequisites:** Your database must be reachable and the `.env` file must be configured (see [Getting Started](#getting-started)).
+**Prerequisites:** 
+
+Before running the tests, ensure you have the following installed on your system:
+- **Go** (version 1.20+)
+- **PostgreSQL** instance running and accepting connections
+- **GNU Make** (installed by default on macOS/Linux; for Windows use Git Bash or chocolatey)
+- **Goose CLI** (`go install github.com/pressly/goose/v3/cmd/goose@latest` to apply migrations or run make commands)
+
+Your database must be reachable, and the `.env` file must be properly configured (see [Getting Started](#getting-started) and the `TEST_DB_*` optional variables below).
 
 Run all DB constraint tests:
 

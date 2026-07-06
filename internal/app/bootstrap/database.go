@@ -3,8 +3,8 @@ package bootstrap
 import (
 	"context"
 	"fmt"
-	"time"
 	"log"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

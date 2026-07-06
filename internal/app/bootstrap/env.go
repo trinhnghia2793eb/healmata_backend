@@ -10,7 +10,7 @@ import (
 type Config struct {
 	AppName string
 	AppPort string
-	AppEnv string
+	AppEnv  string
 
 	GinMode string
 

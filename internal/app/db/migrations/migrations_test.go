@@ -36,8 +36,7 @@ func pgErrCode(err error) string {
 // users table — 2 tests
 // ──────────────────────────────────────────────────────────────────────────────
 
-// TestUsers_EmailUnique_CaseInsensitive verifies that the functional index
-// users_email_unique_idx (LOWER(email)) rejects duplicate emails regardless of case.
+// TC-BE-GO-002-003 — Duplicate Email
 func TestUsers_EmailUnique_CaseInsensitive(t *testing.T) {
 	pool := testhelper.SetupTestDB(t)
 	ctx := context.Background()
@@ -56,7 +55,7 @@ func TestUsers_EmailUnique_CaseInsensitive(t *testing.T) {
 	assert.Equal(t, "23505", pgErrCode(err), "expect unique_violation (23505)")
 }
 
-// TestUsers_PhoneUnique verifies the phone column UNIQUE constraint.
+// TC-BE-GO-002-004 — Duplicate Phone
 func TestUsers_PhoneUnique(t *testing.T) {
 	pool := testhelper.SetupTestDB(t)
 	ctx := context.Background()
@@ -79,8 +78,7 @@ func TestUsers_PhoneUnique(t *testing.T) {
 // social_accounts table — 3 tests
 // ──────────────────────────────────────────────────────────────────────────────
 
-// TestSocialAccounts_FK_InvalidUser verifies that a social_account with a
-// non-existent user_id is rejected by the FK constraint.
+// TC-BE-GO-002-005 — Foreign Key Social Account
 func TestSocialAccounts_FK_InvalidUser(t *testing.T) {
 	pool := testhelper.SetupTestDB(t)
 	ctx := context.Background()
@@ -94,8 +92,7 @@ func TestSocialAccounts_FK_InvalidUser(t *testing.T) {
 	assert.Equal(t, "23503", pgErrCode(err), "expect foreign_key_violation (23503)")
 }
 
-// TestSocialAccounts_ProviderUnique verifies the composite unique constraint
-// (provider, provider_user_id) prevents duplicate OAuth identity links.
+// TC-BE-GO-002-005-001 — Provider Unique
 func TestSocialAccounts_ProviderUnique(t *testing.T) {
 	pool := testhelper.SetupTestDB(t)
 	ctx := context.Background()
@@ -107,20 +104,93 @@ func TestSocialAccounts_ProviderUnique(t *testing.T) {
 	).Scan(&userID)
 	require.NoError(t, err)
 
-	_, err = pool.Exec(ctx,
-		`INSERT INTO social_accounts (user_id, provider, provider_user_id, provider_email)
+	// Happy Path
+	t.Run("Create_Social_Account", func(t *testing.T) {
+		_, err = pool.Exec(ctx,
+			`INSERT INTO social_accounts (user_id, provider, provider_user_id, provider_email)
 		 VALUES ($1, $2, $3, $4)`,
-		userID, "google", "google-uid-001", "charlie@g.com",
-	)
-	require.NoError(t, err, "first social_account insert should succeed")
+			userID, "google", "google-uid-001", "charlie@g.com",
+		)
+		require.NoError(t, err, "first social_account insert should succeed")
+	})
 
+	// Same provider, different provider_user_id → different composite key → MUST succeed
+	t.Run("DifferentProviderID_SameEmail_Success", func(t *testing.T) {
+		_, err = pool.Exec(ctx,
+			`INSERT INTO social_accounts (user_id, provider, provider_user_id, provider_email)
+		 VALUES ($1, $2, $3, $4)`,
+			userID, "google", "google-uid-002", "charlie@g.com",
+		)
+		require.NoError(t, err, "same provider but different provider_user_id must succeed (different composite key)")
+	})
+
+	// Same provider_user_id, diff email
+	t.Run("SameProviderID_DiffEmail_Fails", func(t *testing.T) {
+		_, err = pool.Exec(ctx,
+			`INSERT INTO social_accounts (user_id, provider, provider_user_id, provider_email)
+		 VALUES ($1, $2, $3, $4)`,
+			userID, "google", "google-uid-001", "charlie-dup@g.com",
+		)
+		require.Error(t, err, "duplicate (provider, provider_user_id) must be rejected")
+		assert.Equal(t, "23505", pgErrCode(err), "expect unique_violation (23505)")
+	})
+
+	// Different provider, same user_id, same provider_user_id
+	t.Run("DiffProvider_SameProviderID_Success", func(t *testing.T) {
+		_, err = pool.Exec(ctx,
+			`INSERT INTO social_accounts (user_id, provider, provider_user_id, provider_email)
+		 VALUES ($1, $2, $3, $4)`,
+			userID, "apple", "google-uid-001", "charlie@g.com",
+		)
+		require.NoError(t, err, "different provider, same user_id, same provider_user_id should succeed")
+	})
+}
+
+func TestSocialAccounts_CompositeUniqueConstraint(t *testing.T) {
+	pool := testhelper.SetupTestDB(t)
+	ctx := context.Background()
+
+	var userA, userB string
+	err := pool.QueryRow(ctx,
+		`INSERT INTO users (full_name, email) VALUES ($1, $2) RETURNING id`,
+		"User A", "user.a@test.com",
+	).Scan(&userA)
+	require.NoError(t, err)
+
+	err = pool.QueryRow(ctx,
+		`INSERT INTO users (full_name, email) VALUES ($1, $2) RETURNING id`,
+		"User B", "user.b@test.com",
+	).Scan(&userB)
+	require.NoError(t, err)
+
+	// Base Insert: User A links Google
 	_, err = pool.Exec(ctx,
 		`INSERT INTO social_accounts (user_id, provider, provider_user_id, provider_email)
 		 VALUES ($1, $2, $3, $4)`,
-		userID, "google", "google-uid-001", "charlie-dup@g.com",
+		userA, "google", "google-uid-001", "user.a@g.com",
 	)
-	require.Error(t, err, "duplicate (provider, provider_user_id) must be rejected")
-	assert.Equal(t, "23505", pgErrCode(err), "expect unique_violation (23505)")
+	require.NoError(t, err, "Base insert must succeed")
+
+	// Insert same provider_user_id for User A
+	t.Run("DifferentUser_SameSocial_Fails", func(t *testing.T) {
+		_, err := pool.Exec(ctx,
+			`INSERT INTO social_accounts (user_id, provider, provider_user_id, provider_email)
+			 VALUES ($1, $2, $3, $4)`,
+			userB, "google", "google-uid-001", "user.b@g.com",
+		)
+		require.Error(t, err, "Different user, same provider_user_id must fail")
+		assert.Equal(t, "23505", pgErrCode(err), "expect unique_violation (23505)")
+	})
+
+	t.Run("SameUser_SameProvider_DifferentID_Succeeds", func(t *testing.T) {
+		_, err := pool.Exec(ctx,
+			`INSERT INTO social_accounts (user_id, provider, provider_user_id, provider_email)
+			 VALUES ($1, $2, $3, $4)`,
+			userA, "google", "google-uid-002", "user.a@g.com",
+		)
+		require.NoError(t, err, "Same user, same provider, different provider_user_id must succeed")
+	})
+
 }
 
 // TestSocialAccounts_Cascade_UserDelete verifies ON DELETE CASCADE:
