@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"healmata_backend/internal/db/testhelper"
+	"healmata_backend/internal/app/db/testhelper"
 )
 
 // pgErrCode extracts the PostgreSQL error code string from a pgx error.

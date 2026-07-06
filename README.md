@@ -93,7 +93,7 @@ Run all DB constraint tests:
 make test-db
 ```
 
-This runs `go test ./internal/db/migrations/... -v -count=1` and covers:
+This runs `go test ./internal/app/db/migrations/... -v -count=1` and covers:
 
 | Table | Constraint | Test |
 |---|---|---|
