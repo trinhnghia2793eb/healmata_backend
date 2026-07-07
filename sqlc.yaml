@@ -1,0 +1,11 @@
+version: "2"
+sql:
+  - schema: "internal/app/db/migrations"  # Points directly to Goose migration files
+    queries: "internal/auth/repository/queries" # Where you write raw SQL queries
+    gen:
+      go:
+        package: "repository"
+        out: "internal/auth/repository"
+        db_interface: true             # Generates a Querier interface for easy mocking
+        emit_json_tags: true           # (Optional) Generates json tags on generated models
+        emit_prepared_queries: false

@@ -15,8 +15,26 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib" // pgx driver for database/sql (used by Goose)
+	"github.com/joho/godotenv"
 	"github.com/pressly/goose/v3"
 )
+
+// loadDotEnv attempts to find and load the .env file from the project root.
+func loadDotEnv() {
+	dir, _ := os.Getwd()
+	for {
+		envPath := filepath.Join(dir, ".env")
+		if _, err := os.Stat(envPath); err == nil {
+			_ = godotenv.Load(envPath)
+			return
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+}
 
 // migrationsDir returns the absolute path to the migrations folder,
 // calculated relative to this source file so it works regardless of
@@ -24,7 +42,7 @@ import (
 func migrationsDir() string {
 	// runtime.Caller(0) gives the path of THIS file at compile time.
 	_, filename, _, _ := runtime.Caller(0)
-	// Go up from testhelper/ → db/ → internal/ → project root, then into migrations.
+	// Go up from testhelper/ (which is in internal/app/db/testhelper/) to internal/app/db/migrations/
 	root := filepath.Join(filepath.Dir(filename), "..", "migrations")
 	abs, err := filepath.Abs(root)
 	if err != nil {
@@ -35,6 +53,7 @@ func migrationsDir() string {
 
 // getEnv returns the env var value or a fallback default.
 func getEnv(key, fallback string) string {
+	loadDotEnv()
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
@@ -79,6 +98,7 @@ func SetupTestDB(t *testing.T) *pgxpool.Pool {
 	}
 
 	goose.SetDialect("postgres") //nolint:errcheck
+	goose.SetLogger(goose.NopLogger())
 	migrDir := migrationsDir()
 
 	if err := goose.Up(sqlDB, migrDir); err != nil {
