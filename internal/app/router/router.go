@@ -1,10 +1,13 @@
 package router
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
 
-func RegisterRoutes(r *gin.Engine) {
-    registerAuthRoutes(r)
+func RegisterRoutes(r *gin.Engine, db *pgxpool.Pool) {
+	registerAuthRoutes(r, db)
 
-    // registerUserRoutes(r)
-    // registerPaymentRoutes(r)
+	// registerUserRoutes(r)
+	// registerPaymentRoutes(r)
 }

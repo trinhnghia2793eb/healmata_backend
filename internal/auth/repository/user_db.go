@@ -9,14 +9,15 @@ import (
 
 func (r *authRepository) GetUserByIdentifier(ctx context.Context, identifier string) (*model.User, error) {
 	var user model.User
+	var emailPtr, phonePtr, passwordHashPtr *string
 	query := `SELECT id, full_name, email, phone, password_hash, status, first_setup_completed, created_at, updated_at 
 				FROM users WHERE LOWER(email) = LOWER($1) OR phone = $1`
 	err := r.db.QueryRow(ctx, query, identifier).Scan(
 		&user.ID,
 		&user.FullName,
-		&user.Email,
-		&user.Phone,
-		&user.PasswordHash,
+		&emailPtr,
+		&phonePtr,
+		&passwordHashPtr,
 		&user.Status,
 		&user.FirstSetupCompleted,
 		&user.CreatedAt,
@@ -24,6 +25,15 @@ func (r *authRepository) GetUserByIdentifier(ctx context.Context, identifier str
 	)
 	if err != nil {
 		return nil, err
+	}
+	if emailPtr != nil {
+		user.Email = *emailPtr
+	}
+	if phonePtr != nil {
+		user.Phone = *phonePtr
+	}
+	if passwordHashPtr != nil {
+		user.PasswordHash = *passwordHashPtr
 	}
 	return &user, nil
 }
@@ -115,11 +125,4 @@ func (r *authRepository) CreateSession(ctx context.Context, tx pgx.Tx, payload *
 	session.UserAgent = payload.UserAgent
 
 	return &session, nil
-}
-
-func nilOrValue(val string) *string {
-	if val == "" {
-		return nil
-	}
-	return &val
 }

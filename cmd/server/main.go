@@ -25,10 +25,10 @@ func main() {
 	if err := r.SetTrustedProxies(nil); err != nil {
 		log.Fatal("Cannot config trusted proxies:", err)
 	}
-	
-	router.RegisterRoutes(r)
 
-	// 
+	router.RegisterRoutes(r, app.DB)
+
+	//
 	log.Printf(
 		"%s is running on :%s",
 		app.Config.AppName,
@@ -37,5 +37,5 @@ func main() {
 
 	if err := r.Run(":" + app.Config.AppPort); err != nil {
 		log.Fatal(err)
-	}	
+	}
 }
