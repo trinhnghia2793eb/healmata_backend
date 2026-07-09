@@ -1,10 +1,10 @@
 package dto
 
 type RegisterRequestDTO struct {
-	FullName        string `json:"fullName" validate:"required, min=2,max=100"`
-	Identifier      string `json:"identifier" validate:"required"`
-	Password        string `json:"password" validate:"required, min=8, max=128"`
-	ConfirmPassword string `json:"confirmPassword" validate:"required, eqfield=Password"`
+	FullName        string `json:"fullName" binding:"required,min=2,max=100"`
+	Identifier      string `json:"identifier" binding:"required"`
+	Password        string `json:"password" binding:"required,min=8,max=128"`
+	ConfirmPassword string `json:"confirmPassword" binding:"required,eqfield=Password"`
 }
 
 type RegisterResponseDTO struct {
