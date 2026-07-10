@@ -11,11 +11,11 @@ import (
 	"healmata_backend/internal/auth/token"
 	"healmata_backend/pkg/db"
 	"log"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -56,16 +56,16 @@ func (s *authService) Register(ctx context.Context, req *dto.RegisterRequestDTO,
 	existingUser, err := s.repo.GetUserByIdentifier(ctx, req.Identifier)
 	if err == nil && existingUser != nil {
 		if isEmail && existingUser.Email != "" {
-			return nil, authError.NewAppError(http.StatusConflict, "AUTH_REG_001", authError.ErrEmailExists.Error())
+			return nil, authError.ErrEmailExists
 		} else if !isEmail && existingUser.Phone != "" {
-			return nil, authError.NewAppError(http.StatusConflict, "AUTH_REG_002", authError.ErrPhoneExists.Error())
+			return nil, authError.ErrPhoneExists
 		}
 	}
 
 	// 3. Hash Password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, authError.NewAppError(http.StatusInternalServerError, "AUTH_REG_005", authError.ErrInternalError.Error())
+		return nil, authError.ErrInternalError
 	}
 
 	// 4. Build user model
@@ -82,6 +82,15 @@ func (s *authService) Register(ctx context.Context, req *dto.RegisterRequestDTO,
 		// A. Create User record
 		user, err := s.repo.CreateUser(ctx, tx, userPayload)
 		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+				switch pgErr.ConstraintName {
+				case "users_email_unique_idx":
+					return authError.ErrEmailExists
+				case "users_phone_key":
+					return authError.ErrPhoneExists
+				}
+			}
 			return err
 		}
 
@@ -132,7 +141,7 @@ func (s *authService) Register(ctx context.Context, req *dto.RegisterRequestDTO,
 		if errors.As(err, &appErr) {
 			return nil, appErr
 		}
-		return nil, authError.NewAppError(http.StatusInternalServerError, "AUTH_REG_005", authError.ErrInternalError.Error())
+		return nil, authError.ErrInternalError
 	}
 
 	return response, nil

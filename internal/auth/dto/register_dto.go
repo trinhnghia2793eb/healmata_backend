@@ -1,9 +1,9 @@
 package dto
 
 type RegisterRequestDTO struct {
-	FullName        string `json:"fullName" binding:"required,min=2,max=100"`
-	Identifier      string `json:"identifier" binding:"required"`
-	Password        string `json:"password" binding:"required,min=8,max=128"`
+	FullName        string `json:"fullName" binding:"required,is_fullname"`
+	Identifier      string `json:"identifier" binding:"required,is_identifier"`
+	Password        string `json:"password" binding:"required,min=8"`
 	ConfirmPassword string `json:"confirmPassword" binding:"required,eqfield=Password"`
 }
 

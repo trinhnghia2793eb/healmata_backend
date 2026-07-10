@@ -248,6 +248,108 @@ func TestRegister(t *testing.T) {
 
 		assert.False(t, resp["success"].(bool))
 		errMap := resp["error"].(map[string]interface{})
-		assert.Equal(t, "AUTH_REG_003", errMap["code"])
+		assert.Equal(t, "AUTH_REG_008", errMap["code"])
+	})
+
+	t.Run("Failure - Validation error (invalid email format)", func(t *testing.T) {
+		pool := testhelper.SetupTestDB(t)
+		r := gin.New()
+		router.RegisterRoutes(r, pool)
+
+		reqBody := dto.RegisterRequestDTO{
+			FullName:        "Nguyen Van F",
+			Identifier:      "invalid-email@",
+			Password:        "Password123!",
+			ConfirmPassword: "Password123!",
+		}
+
+		bodyBytes, err := json.Marshal(reqBody)
+		require.NoError(t, err)
+
+		req, err := http.NewRequest("POST", "/v1/auth/register", bytes.NewBuffer(bodyBytes))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+
+		var resp map[string]interface{}
+		err = json.Unmarshal(w.Body.Bytes(), &resp)
+		require.NoError(t, err)
+
+		assert.False(t, resp["success"].(bool))
+		errMap := resp["error"].(map[string]interface{})
+		assert.Equal(t, "AUTH_REG_006", errMap["code"])
+		assert.Equal(t, "INVALID_EMAIL", errMap["message"])
+	})
+
+	t.Run("Failure - Validation error (invalid phone format)", func(t *testing.T) {
+		pool := testhelper.SetupTestDB(t)
+		r := gin.New()
+		router.RegisterRoutes(r, pool)
+
+		reqBody := dto.RegisterRequestDTO{
+			FullName:        "Nguyen Van G",
+			Identifier:      "123abc456",
+			Password:        "Password123!",
+			ConfirmPassword: "Password123!",
+		}
+
+		bodyBytes, err := json.Marshal(reqBody)
+		require.NoError(t, err)
+
+		req, err := http.NewRequest("POST", "/v1/auth/register", bytes.NewBuffer(bodyBytes))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+
+		var resp map[string]interface{}
+		err = json.Unmarshal(w.Body.Bytes(), &resp)
+		require.NoError(t, err)
+
+		assert.False(t, resp["success"].(bool))
+		errMap := resp["error"].(map[string]interface{})
+		assert.Equal(t, "AUTH_REG_007", errMap["code"])
+		assert.Equal(t, "INVALID_PHONE", errMap["message"])
+	})
+
+	t.Run("Failure - Validation error (invalid name length)", func(t *testing.T) {
+		pool := testhelper.SetupTestDB(t)
+		r := gin.New()
+		router.RegisterRoutes(r, pool)
+
+		reqBody := dto.RegisterRequestDTO{
+			FullName:        "A",
+			Identifier:      "validuser@example.com",
+			Password:        "Password123!",
+			ConfirmPassword: "Password123!",
+		}
+
+		bodyBytes, err := json.Marshal(reqBody)
+		require.NoError(t, err)
+
+		req, err := http.NewRequest("POST", "/v1/auth/register", bytes.NewBuffer(bodyBytes))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+
+		var resp map[string]interface{}
+		err = json.Unmarshal(w.Body.Bytes(), &resp)
+		require.NoError(t, err)
+
+		assert.False(t, resp["success"].(bool))
+		errMap := resp["error"].(map[string]interface{})
+		assert.Equal(t, "AUTH_REG_004", errMap["code"])
+		assert.Equal(t, "INVALID_NAME", errMap["message"])
 	})
 }

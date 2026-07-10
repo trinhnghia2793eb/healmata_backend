@@ -20,7 +20,7 @@ migrate-reset:
 
 # Run database constraint integration tests (requires DB_* env vars)
 test-db:
-		go test ./internal/app/db/migrations/... -v -count=1
+		go test ./internal/db/migrations/... -v -count=1
 
 run:
 		go run ./cmd/server

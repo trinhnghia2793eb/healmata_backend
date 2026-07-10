@@ -8,12 +8,16 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"healmata_backend/internal/auth/handler"
+	"healmata_backend/internal/auth/middleware"
 	"healmata_backend/internal/auth/repository"
 	"healmata_backend/internal/auth/service"
 	"healmata_backend/internal/auth/token"
+	"healmata_backend/internal/auth/validator"
 )
 
 func registerAuthRoutes(r *gin.Engine, db *pgxpool.Pool) {
+	// Register custom validators
+	validator.RegisterCustomValidators()
 	// 1. Initialize JWT Manager (load secret from environment or fallback)
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
@@ -40,6 +44,6 @@ func registerAuthRoutes(r *gin.Engine, db *pgxpool.Pool) {
 	v1 := r.Group("/v1")
 	{
 		v1Auth := v1.Group("/auth")
-		v1Auth.POST("/register", h.Register)
+		v1Auth.POST("/register", middleware.ValidateRegister(), h.Register)
 	}
 }
