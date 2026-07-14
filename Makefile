@@ -24,3 +24,6 @@ test-db:
 
 run:
 		go run ./cmd/server
+
+test:
+		go test ./internal/auth/handler/... -v -count=1
