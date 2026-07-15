@@ -3,7 +3,7 @@ package handler
 import (
 	"errors"
 	"healmata_backend/internal/auth/dto"
-	authErrors "healmata_backend/internal/auth/errors"
+	authError "healmata_backend/internal/auth/errors"
 	"log"
 	"net/http"
 
@@ -22,7 +22,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		if err := c.ShouldBindJSON(&fallbackReq); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error":   authErrors.ErrInvalidJSON,
+				"error":   authError.ErrInvalidJSON,
 			})
 			return
 		}
@@ -32,7 +32,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	// 2. Call the service layer
 	resp, err := h.service.Register(c, req, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
-		var appErr *authErrors.AppError
+		var appErr *authError.AppError
 		if errors.As(err, &appErr) {
 			// If it's a known domain error, return its specific HTTP status and code
 			c.JSON(appErr.HTTPStatus, gin.H{
@@ -46,7 +46,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		log.Printf("[Register] Unexpected error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   authErrors.ErrInternalError,
+			"error":   authError.ErrInternalError,
 		})
 		return
 	}
