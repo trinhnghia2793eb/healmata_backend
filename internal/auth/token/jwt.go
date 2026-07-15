@@ -1,6 +1,10 @@
 package token
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -8,6 +12,7 @@ import (
 )
 
 type JWTClaims struct {
+	// TODO: Add more fields here (role, permissions, etc)
 	UserID string `json:"userId"`
 	jwt.RegisteredClaims
 }
@@ -40,17 +45,37 @@ func (jm *JWTManager) GenerateToken(userID string, duration time.Duration) (stri
 	return token.SignedString([]byte(jm.secretKey))
 }
 
+func GenerateSecureRandomString(length int) (string, error) {
+	b := make([]byte, length)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(b), nil
+}
+
+func HashStringSHA256(data string) string {
+	hash := sha256.Sum256([]byte(data))
+	return hex.EncodeToString(hash[:])
+}
+
 // Generate Access Token and Refresh Token
-func (jm *JWTManager) GenerateAccessAndRefreshToken(userID string) (string, string, int64, error) {
+func (jm *JWTManager) GenerateAccessAndRefreshToken(userID string) (string, string, string, int64, error) {
 	accessToken, err := jm.GenerateToken(userID, jm.accessExpiry)
 	if err != nil {
-		return "", "", 0, err
+		return "", "", "", 0, err
 	}
-	refreshToken, err := jm.GenerateToken(userID, jm.refreshExpiry)
+	// Waiting for approved.
+	// refreshToken, err := jm.GenerateToken(userID, jm.refreshExpiry)
+	// if err != nil {
+	// 	return "", "", "",0, err
+	// }
+	rawRefreshToken, err := GenerateSecureRandomString(32)
 	if err != nil {
-		return "", "", 0, err
+		return "", "", "", 0, err
 	}
-	return accessToken, refreshToken, int64(jm.accessExpiry.Seconds()), nil
+	hashedRefreshToken := HashStringSHA256(rawRefreshToken)
+
+	return accessToken, rawRefreshToken, hashedRefreshToken, int64(jm.accessExpiry.Seconds()), nil
 }
 
 // VerifyToken verifies a token and returns the claims if the token is valid
