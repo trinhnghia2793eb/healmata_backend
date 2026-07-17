@@ -24,3 +24,10 @@ type CreateUserSessionPayload struct {
 	IPAddress      string
 	UserAgent      string
 }
+
+type CreateSocialAccountPayload struct {
+	UserID         string
+	Provider       string
+	ProviderUserID string
+	ProviderEmail  string
+}

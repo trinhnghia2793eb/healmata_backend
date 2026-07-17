@@ -29,6 +29,14 @@ var (
 	AUTH_LOGIN_005 = NewAppError(http.StatusInternalServerError, "AUTH_LOGIN_005", "INTERNAL_ERROR")
 	AUTH_LOGIN_006 = NewAppError(http.StatusServiceUnavailable, "AUTH_LOGIN_006", "NETWORK_ERROR")
 
+	// Social Login (AUTH_SOCIAL_*)
+	AUTH_SOCIAL_001 = NewAppError(http.StatusBadRequest, "AUTH_SOCIAL_001", "INVALID_PROVIDER")
+	AUTH_SOCIAL_002 = NewAppError(http.StatusUnauthorized, "AUTH_SOCIAL_002", "INVALID_PROVIDER_TOKEN")
+	AUTH_SOCIAL_003 = NewAppError(http.StatusConflict, "AUTH_SOCIAL_003", "EMAIL_LINK_CONFLICT")
+	AUTH_SOCIAL_004 = NewAppError(http.StatusInternalServerError, "AUTH_SOCIAL_004", "INTERNAL_ERROR")
+	// Optional Error
+	AUTH_SOCIAL_005 = NewAppError(http.StatusUnauthorized, "AUTH_SOCIAL_005", "EMAIL_NOT_FOUND")
+
 	// Aliases for compatibility/readability:
 	ErrEmailExists             = AUTH_REG_001
 	ErrPhoneExists             = AUTH_REG_002

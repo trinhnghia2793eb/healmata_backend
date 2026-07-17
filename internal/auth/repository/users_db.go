@@ -57,10 +57,10 @@ func (r *authRepository) CreateUser(ctx context.Context, tx pgx.Tx, payload *Cre
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
-
 	if err != nil {
 		return nil, err
 	}
+
 	user.FullName = payload.FullName
 	if payload.Email != nil {
 		user.Email = *payload.Email

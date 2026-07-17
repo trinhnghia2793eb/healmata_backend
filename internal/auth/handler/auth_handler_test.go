@@ -436,3 +436,202 @@ func TestLogin(t *testing.T) {
 		}
 	})
 }
+
+func TestSocialLogin(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	// Enable mock token verification bypass for local test run
+	t.Setenv("DEV_SKIP_VERIFY_TOKEN", "true")
+
+	t.Run("Success cases", func(t *testing.T) {
+		pool := testhelper.SetupTestDB(t)
+		r := gin.New()
+		router.RegisterRoutes(r, pool)
+
+		// 1. Success case: Register new user via Google
+		reqBodyNew := dto.SocialLoginRequestDTO{
+			Provider:      "google",
+			ProviderToken: "new_social_user@example.com",
+			Device: &dto.Device{
+				Platform: "ios",
+				DeviceID: "device_new_001",
+			},
+		}
+
+		bodyBytes, err := json.Marshal(reqBodyNew)
+		require.NoError(t, err)
+
+		req, err := http.NewRequest("POST", "/v1/auth/social-login", bytes.NewBuffer(bodyBytes))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var resp map[string]interface{}
+		err = json.Unmarshal(w.Body.Bytes(), &resp)
+		require.NoError(t, err)
+
+		assert.True(t, resp["success"].(bool))
+		assert.Equal(t, "SOCIAL_LOGIN_SUCCESS", resp["message"])
+
+		data := resp["data"].(map[string]interface{})
+		assert.NotEmpty(t, data["accessToken"])
+		assert.NotEmpty(t, data["refreshToken"])
+		assert.Equal(t, true, data["isNewUser"].(bool))
+		assert.Equal(t, true, data["linkedAccount"].(bool))
+
+		// Verify user created in DB
+		ctx := context.Background()
+		var dbUserID string
+		err = pool.QueryRow(ctx, "SELECT id FROM users WHERE email = $1", "new_social_user@example.com").Scan(&dbUserID)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, dbUserID)
+
+		// Verify social accounts linked
+		var socialID string
+		err = pool.QueryRow(ctx, "SELECT id FROM social_accounts WHERE user_id = $1 AND provider = $2", dbUserID, "google").Scan(&socialID)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, socialID)
+
+		// 2. Success case: Auto-link with existing email user (BR-07)
+		// First insert an existing user with email "existing_email@example.com"
+		var existingUserID string
+		err = pool.QueryRow(ctx, `
+			INSERT INTO users (full_name, email, phone, password_hash)
+			VALUES ($1, $2, $3, $4)
+			RETURNING id`,
+			"Nguyen Van Existing", "existing_email@example.com", nil, "some_password_hash",
+		).Scan(&existingUserID)
+		require.NoError(t, err)
+
+		reqBodyLink := dto.SocialLoginRequestDTO{
+			Provider:      "apple",
+			ProviderToken: "existing_email@example.com",
+			Device: &dto.Device{
+				Platform: "web",
+				DeviceID: "device_existing_002",
+			},
+		}
+
+		bodyBytes, err = json.Marshal(reqBodyLink)
+		require.NoError(t, err)
+
+		req, err = http.NewRequest("POST", "/v1/auth/social-login", bytes.NewBuffer(bodyBytes))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		w = httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var respLink map[string]interface{}
+		err = json.Unmarshal(w.Body.Bytes(), &respLink)
+		require.NoError(t, err)
+
+		assert.True(t, respLink["success"].(bool))
+		dataLink := respLink["data"].(map[string]interface{})
+		assert.Equal(t, false, dataLink["isNewUser"].(bool)) // Not a new user
+		assert.Equal(t, true, dataLink["linkedAccount"].(bool))
+
+		// Verify existing user linked in DB
+		var linkSocialID string
+		err = pool.QueryRow(ctx, "SELECT id FROM social_accounts WHERE user_id = $1 AND provider = $2", existingUserID, "apple").Scan(&linkSocialID)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, linkSocialID)
+
+		// 3. Success case: Repeat social login (Case A)
+		w = httptest.NewRecorder()
+		req, err = http.NewRequest("POST", "/v1/auth/social-login", bytes.NewBuffer(bodyBytes))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var respRepeat map[string]interface{}
+		err = json.Unmarshal(w.Body.Bytes(), &respRepeat)
+		require.NoError(t, err)
+		dataRepeat := respRepeat["data"].(map[string]interface{})
+		assert.Equal(t, false, dataRepeat["isNewUser"].(bool))
+		assert.Equal(t, true, dataRepeat["linkedAccount"].(bool))
+	})
+
+	t.Run("Failure cases", func(t *testing.T) {
+		pool := testhelper.SetupTestDB(t)
+		r := gin.New()
+		router.RegisterRoutes(r, pool)
+
+		tests := []struct {
+			name           string
+			reqBody        interface{}
+			expectedStatus int
+			expectedCode   string
+		}{
+			{
+				name: "Unsupported provider",
+				reqBody: map[string]interface{}{
+					"provider":      "facebook",
+					"providerToken": "token123",
+				},
+				expectedStatus: http.StatusBadRequest,
+				expectedCode:   "AUTH_SOCIAL_001",
+			},
+			{
+				name: "Missing provider",
+				reqBody: map[string]interface{}{
+					"providerToken": "token123",
+				},
+				expectedStatus: http.StatusBadRequest,
+				expectedCode:   "AUTH_SOCIAL_001",
+			},
+			{
+				name: "Missing providerToken",
+				reqBody: map[string]interface{}{
+					"provider": "google",
+				},
+				expectedStatus: http.StatusUnauthorized,
+				expectedCode:   "AUTH_SOCIAL_002",
+			},
+			{
+				name:           "Invalid JSON body",
+				reqBody:        "invalid_json_string",
+				expectedStatus: http.StatusBadRequest,
+				expectedCode:   "AUTH_VAL_001",
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				var bodyBytes []byte
+				var err error
+
+				if str, ok := tc.reqBody.(string); ok {
+					bodyBytes = []byte(str)
+				} else {
+					bodyBytes, err = json.Marshal(tc.reqBody)
+					require.NoError(t, err)
+				}
+
+				req, err := http.NewRequest("POST", "/v1/auth/social-login", bytes.NewBuffer(bodyBytes))
+				require.NoError(t, err)
+				req.Header.Set("Content-Type", "application/json")
+
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+
+				assert.Equal(t, tc.expectedStatus, w.Code)
+
+				var resp map[string]interface{}
+				err = json.Unmarshal(w.Body.Bytes(), &resp)
+				require.NoError(t, err)
+
+				assert.False(t, resp["success"].(bool))
+				errDetails := resp["error"].(map[string]interface{})
+				assert.Equal(t, tc.expectedCode, errDetails["code"])
+			})
+		}
+	})
+}

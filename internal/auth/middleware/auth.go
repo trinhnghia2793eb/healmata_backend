@@ -125,3 +125,48 @@ func ValidateLogin() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+func ValidateSocialLogin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req dto.SocialLoginRequestDTO
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			var ve validator.ValidationErrors
+
+			if errors.As(err, &ve) {
+				for _, fe := range ve {
+					switch fe.Field() {
+					case "provider":
+						c.JSON(customErrors.AUTH_SOCIAL_001.HTTPStatus, gin.H{
+							"success": false,
+							"error":   customErrors.AUTH_SOCIAL_001,
+						})
+						c.Abort()
+						return
+					case "providerToken":
+						c.JSON(customErrors.AUTH_SOCIAL_002.HTTPStatus, gin.H{
+							"success": false,
+							"error":   customErrors.AUTH_SOCIAL_002,
+						})
+						c.Abort()
+						return
+					}
+				}
+			}
+
+			c.JSON(customErrors.ErrInvalidJSON.HTTPStatus, gin.H{
+				"success": false,
+				"error":   customErrors.ErrInvalidJSON,
+			})
+			c.Abort()
+			return
+		}
+
+		req.Provider = strings.TrimSpace(req.Provider)
+		req.ProviderToken = strings.TrimSpace(req.ProviderToken)
+
+		c.Set("social_login_req", &req)
+		c.Next()
+	}
+
+}

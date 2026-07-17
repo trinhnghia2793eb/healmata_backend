@@ -46,5 +46,6 @@ func registerAuthRoutes(r *gin.Engine, db *pgxpool.Pool) {
 		v1Auth := v1.Group("/auth")
 		v1Auth.POST("/register", middleware.ValidateRegister(), h.Register)
 		v1Auth.POST("/login", middleware.ValidateLogin(), h.Login)
+		v1Auth.POST("/social-login", middleware.ValidateSocialLogin(), h.SocialLogin)
 	}
 }
