@@ -126,3 +126,13 @@ func (r *authRepository) CreateSession(ctx context.Context, tx pgx.Tx, payload *
 
 	return &session, nil
 }
+
+func (r *authRepository) UpdateUserPassword(ctx context.Context, tx pgx.Tx, identifier string, passwordHash string) error {
+	query := `
+		UPDATE users
+		SET password_hash = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE LOWER(email) = LOWER($2) OR phone = $2
+	`
+	_, err := tx.Exec(ctx, query, passwordHash, identifier)
+	return err
+}

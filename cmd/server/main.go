@@ -26,7 +26,7 @@ func main() {
 		log.Fatal("Cannot config trusted proxies:", err)
 	}
 
-	router.RegisterRoutes(r, app.DB)
+	router.RegisterRoutes(r, app.DB, app.EmailSender)
 
 	//
 	log.Printf(

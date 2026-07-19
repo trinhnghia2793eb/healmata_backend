@@ -24,3 +24,10 @@ type CreateUserSessionPayload struct {
 	IPAddress      string
 	UserAgent      string
 }
+
+type CreateOtpRequestPayload struct {
+	Identifier string
+	OtpHash    string
+	Purpose    string
+	ExpiresAt  time.Time
+}

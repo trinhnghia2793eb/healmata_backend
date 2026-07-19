@@ -22,5 +22,8 @@ migrate-reset:
 test-db:
 		go test ./internal/db/migrations/... -v -count=1
 
+test-auth:
+		go test ./internal/auth/handler/... -v -count=1
+
 run:
 		go run ./cmd/server

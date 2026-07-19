@@ -24,7 +24,8 @@ func TestRegister(t *testing.T) {
 	t.Run("Success - Register with email", func(t *testing.T) {
 		pool := testhelper.SetupTestDB(t)
 		r := gin.New()
-		router.RegisterRoutes(r, pool)
+		emailSender := testhelper.NewMockEmailSender()
+		router.RegisterRoutes(r, pool, emailSender)
 
 		reqBody := dto.RegisterRequestDTO{
 			FullName:        "Nguyen Van A",
@@ -84,7 +85,8 @@ func TestRegister(t *testing.T) {
 	t.Run("Success - Register with phone", func(t *testing.T) {
 		pool := testhelper.SetupTestDB(t)
 		r := gin.New()
-		router.RegisterRoutes(r, pool)
+		emailSender := testhelper.NewMockEmailSender()
+		router.RegisterRoutes(r, pool, emailSender)
 
 		reqBody := dto.RegisterRequestDTO{
 			FullName:        "Nguyen Van B",
@@ -137,7 +139,8 @@ func TestRegister(t *testing.T) {
 	t.Run("Failure - Duplicate Email", func(t *testing.T) {
 		pool := testhelper.SetupTestDB(t)
 		r := gin.New()
-		router.RegisterRoutes(r, pool)
+		emailSender := testhelper.NewMockEmailSender()
+		router.RegisterRoutes(r, pool, emailSender)
 
 		// Seed user directly into database
 		ctx := context.Background()
@@ -179,7 +182,8 @@ func TestRegister(t *testing.T) {
 	t.Run("Failure - Duplicate Phone", func(t *testing.T) {
 		pool := testhelper.SetupTestDB(t)
 		r := gin.New()
-		router.RegisterRoutes(r, pool)
+		emailSender := testhelper.NewMockEmailSender()
+		router.RegisterRoutes(r, pool, emailSender)
 
 		// Seed user directly into database
 		ctx := context.Background()
@@ -221,7 +225,8 @@ func TestRegister(t *testing.T) {
 	t.Run("Failure - Validation error (password mismatch)", func(t *testing.T) {
 		pool := testhelper.SetupTestDB(t)
 		r := gin.New()
-		router.RegisterRoutes(r, pool)
+		emailSender := testhelper.NewMockEmailSender()
+		router.RegisterRoutes(r, pool, emailSender)
 
 		reqBody := dto.RegisterRequestDTO{
 			FullName:        "Nguyen Van E",
@@ -254,7 +259,8 @@ func TestRegister(t *testing.T) {
 	t.Run("Failure - Validation error (invalid email format)", func(t *testing.T) {
 		pool := testhelper.SetupTestDB(t)
 		r := gin.New()
-		router.RegisterRoutes(r, pool)
+		emailSender := testhelper.NewMockEmailSender()
+		router.RegisterRoutes(r, pool, emailSender)
 
 		reqBody := dto.RegisterRequestDTO{
 			FullName:        "Nguyen Van F",
@@ -282,13 +288,14 @@ func TestRegister(t *testing.T) {
 		assert.False(t, resp["success"].(bool))
 		errMap := resp["error"].(map[string]interface{})
 		assert.Equal(t, "AUTH_REG_006", errMap["code"])
-		assert.Equal(t, "INVALID_EMAIL", errMap["message"])
+		assert.Equal(t, "INVALID_IDENTIFIER", errMap["message"])
 	})
 
 	t.Run("Failure - Validation error (invalid phone format)", func(t *testing.T) {
 		pool := testhelper.SetupTestDB(t)
 		r := gin.New()
-		router.RegisterRoutes(r, pool)
+		emailSender := testhelper.NewMockEmailSender()
+		router.RegisterRoutes(r, pool, emailSender)
 
 		reqBody := dto.RegisterRequestDTO{
 			FullName:        "Nguyen Van G",
@@ -316,13 +323,14 @@ func TestRegister(t *testing.T) {
 		assert.False(t, resp["success"].(bool))
 		errMap := resp["error"].(map[string]interface{})
 		assert.Equal(t, "AUTH_REG_007", errMap["code"])
-		assert.Equal(t, "INVALID_PHONE", errMap["message"])
+		assert.Equal(t, "INVALID_IDENTIFIER", errMap["message"])
 	})
 
 	t.Run("Failure - Validation error (invalid name length)", func(t *testing.T) {
 		pool := testhelper.SetupTestDB(t)
 		r := gin.New()
-		router.RegisterRoutes(r, pool)
+		emailSender := testhelper.NewMockEmailSender()
+		router.RegisterRoutes(r, pool, emailSender)
 
 		reqBody := dto.RegisterRequestDTO{
 			FullName:        "A",

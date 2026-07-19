@@ -10,6 +10,7 @@ import (
 	"healmata_backend/internal/auth/repository"
 	"healmata_backend/internal/auth/token"
 	"healmata_backend/pkg/db"
+	"healmata_backend/pkg/email"
 	"log"
 	"strings"
 	"time"
@@ -22,23 +23,29 @@ import (
 
 type AuthService interface {
 	Register(ctx context.Context, req *dto.RegisterRequestDTO, clientIP, userAgent string) (*dto.RegisterResponseDTO, error)
+	ForgotPassword(ctx context.Context, req *dto.ForgotPasswordRequestDTO) (*dto.ForgotPasswordResponseDTO, error)
+	VerifyResetOtp(ctx context.Context, req *dto.VerifyResetOtpRequestDTO) (*dto.VerifyResetOtpResponseDTO, error)
+	ResetPassword(ctx context.Context, req *dto.ResetPasswordRequestDTO) (*dto.ResetPasswordResponseDTO, error)
 }
 
 type authService struct {
 	repo       repository.AuthRepository
 	dbPool     *pgxpool.Pool
 	jwtManager *token.JWTManager
+	emailSender email.EmailSender
 }
 
 func NewAuthService(
 	repo repository.AuthRepository,
 	dbPool *pgxpool.Pool,
 	jwtManager *token.JWTManager,
+	emailSender email.EmailSender,
 ) AuthService {
 	return &authService{
 		repo:       repo,
 		dbPool:     dbPool,
 		jwtManager: jwtManager,
+		emailSender: emailSender,
 	}
 }
 
