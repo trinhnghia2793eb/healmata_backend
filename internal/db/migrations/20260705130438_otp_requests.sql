@@ -8,6 +8,8 @@ CREATE TABLE otp_requests (
 	attempts INT DEFAULT 0,
 	expires_at timestamptz NOT NULL,
 	verified_at timestamptz,
+    reset_token_hash VARCHAR(255),
+	token_expires_at timestamptz,
 	created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -1,5 +1,8 @@
 package handler_test
 
+// emailSender := testhelper.NewMockEmailSender()
+// 				router.RegisterRoutes(r, pool, emailSender)
+
 import (
 	"bytes"
 	"context"
@@ -55,7 +58,8 @@ func TestRegister(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				pool := testhelper.SetupTestDB(t)
 				r := gin.New()
-				router.RegisterRoutes(r, pool)
+				emailSender := testhelper.NewMockEmailSender()
+				router.RegisterRoutes(r, pool, emailSender)
 
 				bodyBytes, err := json.Marshal(tc.reqBody)
 				require.NoError(t, err)
@@ -176,7 +180,7 @@ func TestRegister(t *testing.T) {
 					Password:        "Password123!",
 					ConfirmPassword: "Password123!",
 				},
-				expectedCode: "AUTH_VAL_002",
+				expectedCode: "AUTH_VAL_003",
 				expectedMsg:  "INVALID_EMAIL",
 				expectedHTTP: http.StatusUnprocessableEntity,
 			},
@@ -188,7 +192,7 @@ func TestRegister(t *testing.T) {
 					Password:        "Password123!",
 					ConfirmPassword: "Password123!",
 				},
-				expectedCode: "AUTH_VAL_003",
+				expectedCode: "AUTH_VAL_004",
 				expectedMsg:  "INVALID_PHONE",
 				expectedHTTP: http.StatusUnprocessableEntity,
 			},
@@ -210,7 +214,8 @@ func TestRegister(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				pool := testhelper.SetupTestDB(t)
 				r := gin.New()
-				router.RegisterRoutes(r, pool)
+				emailSender := testhelper.NewMockEmailSender()
+				router.RegisterRoutes(r, pool, emailSender)
 
 				if tc.setupFunc != nil {
 					tc.setupFunc(t, pool)
@@ -294,7 +299,8 @@ func TestLogin(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				pool := testhelper.SetupTestDB(t)
 				r := gin.New()
-				router.RegisterRoutes(r, pool)
+				emailSender := testhelper.NewMockEmailSender()
+				router.RegisterRoutes(r, pool, emailSender)
 
 				if tc.setupFunc != nil {
 					tc.setupFunc(t, pool)
@@ -386,7 +392,7 @@ func TestLogin(t *testing.T) {
 					Identifier: "invalid-email@",
 					Password:   "Password123!",
 				},
-				expectedCode: "AUTH_VAL_002",
+				expectedCode: "AUTH_VAL_003",
 				expectedMsg:  "INVALID_EMAIL",
 				expectedHTTP: http.StatusUnprocessableEntity,
 			},
@@ -396,7 +402,7 @@ func TestLogin(t *testing.T) {
 					Identifier: "testlogin@example.com",
 					Password:   "short",
 				},
-				expectedCode: "AUTH_VAL_004",
+				expectedCode: "AUTH_VAL_005",
 				expectedMsg:  "INVALID_PASSWORD",
 				expectedHTTP: http.StatusUnprocessableEntity,
 			},
@@ -406,7 +412,8 @@ func TestLogin(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				pool := testhelper.SetupTestDB(t)
 				r := gin.New()
-				router.RegisterRoutes(r, pool)
+				emailSender := testhelper.NewMockEmailSender()
+				router.RegisterRoutes(r, pool, emailSender)
 
 				if tc.setupFunc != nil {
 					tc.setupFunc(t, pool)

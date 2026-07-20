@@ -20,10 +20,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	} else {
 		var fallbackReq dto.LoginRequestDTO
 		if err := c.ShouldBindJSON(&fallbackReq); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"success": false,
-				"error":   authErrors.ErrInvalidJSON,
-			})
+			authErrors.ReturnAppError(c, validationErr.InvalidJson)
 			return
 		}
 		req = &fallbackReq
@@ -34,20 +31,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	if err != nil {
 		var appErr *authErrors.AppError
 		if errors.As(err, &appErr) {
-			// If it's a known domain error, return its specific HTTP status and code
-			c.JSON(appErr.HTTPStatus, gin.H{
-				"success": false,
-				"error":   appErr,
-			})
+			authErrors.ReturnAppError(c, appErr)
 			return
 		}
 
-		// Unexpected error, log it and return generic 500
 		log.Printf("[Login] Unexpected error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   authErrors.ErrInternalError,
-		})
+		authErrors.ReturnAppError(c, validationErr.InternalError)
 		return
 	}
 

@@ -1,8 +1,11 @@
 package handler
 
 import (
+	authErrors "healmata_backend/internal/auth/errors"
 	"healmata_backend/internal/auth/service"
 )
+
+var validationErr = authErrors.Validation
 
 type AuthHandler struct {
 	service service.AuthService

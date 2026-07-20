@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"healmata_backend/internal/auth/dto"
-	authError "healmata_backend/internal/auth/errors"
+	authErrors "healmata_backend/internal/auth/errors"
 	"healmata_backend/internal/auth/repository"
 	"healmata_backend/pkg/db"
 	"log"
@@ -19,18 +19,18 @@ func (s *authService) Login(ctx context.Context, req *dto.LoginRequestDTO, clien
 	user, err := s.repo.GetUserByIdentifier(ctx, req.Identifier)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, authError.AUTH_LOGIN_002
+			return nil, loginErr.UserNotFound
 		}
-		return nil, authError.ErrInternalError
+		return nil, loginErr.InternalError
 	}
 	// 2. Verify account is not disable
 	if user.Status != "active" {
-		return nil, authError.AUTH_LOGIN_003
+		return nil, loginErr.UserDisabled
 	}
 	// 3. Verify bcrypt password
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
 	if err != nil {
-		return nil, authError.AUTH_LOGIN_001
+		return nil, loginErr.InvalidCredential
 	}
 
 	var response *dto.LoginResponseDTO
@@ -73,11 +73,11 @@ func (s *authService) Login(ctx context.Context, req *dto.LoginRequestDTO, clien
 	})
 	if err != nil {
 		log.Printf("[Login Service] underlying error: %v", err)
-		var appErr *authError.AppError
+		var appErr *authErrors.AppError
 		if errors.As(err, &appErr) {
 			return nil, appErr
 		}
-		return nil, authError.ErrInternalError
+		return nil, loginErr.InternalError
 	}
 	return response, nil
 }

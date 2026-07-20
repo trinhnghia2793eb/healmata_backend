@@ -1,10 +1,11 @@
 package errors
 
 import (
-	"net/http"
+	// "net/http"
 	"reflect"
 	"strings"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 )
@@ -19,22 +20,6 @@ func init() {
 			return name
 		})
 	}
-}
-
-func GetValidationErrorMsg(fe validator.FieldError) string {
-	switch fe.Tag() {
-	case "required":
-		return "Trường này không được bỏ trống"
-	case "min":
-		return "Độ dài ngắn hơn quy định tối thiểu (yêu cầu tối thiểu " + fe.Param() + " ký tự)"
-	case "max":
-		return "Độ dài vượt quá quy định tối đa (tối đa " + fe.Param() + " ký tự)"
-	case "eqfield":
-		return "Mật khẩu xác nhận không khớp"
-	case "email":
-		return "Định dạng email không hợp lệ"
-	}
-	return "Dữ liệu không hợp lệ"
 }
 
 type ErrorDetail struct {
@@ -60,11 +45,19 @@ func NewAppError(httpStatus int, errorCode string, message string) *AppError {
 	}
 }
 
-func NewValidationError(details []ErrorDetail) *AppError {
-	return &AppError{
-		HTTPStatus: http.StatusBadRequest,
-		ErrorCode:  "VALIDATION_ERROR",
-		Message:    "Dữ liệu đầu vào không hợp lệ",
-		Details:    details,
-	}
+// return error in middleware, handler, service?
+func ReturnAppError(c *gin.Context, appErr *AppError) {
+	c.JSON(appErr.HTTPStatus, gin.H{
+		"success": false,
+		"error":   appErr,
+	})
 }
+
+// func NewValidationError(details []ErrorDetail) *AppError {
+// 	return &AppError{
+// 		HTTPStatus: http.StatusBadRequest,
+// 		ErrorCode:  "VALIDATION_ERROR",
+// 		Message:    "Dữ liệu đầu vào không hợp lệ",
+// 		Details:    details,
+// 	}
+// }

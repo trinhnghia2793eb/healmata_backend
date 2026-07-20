@@ -13,9 +13,10 @@ import (
 	"healmata_backend/internal/auth/service"
 	"healmata_backend/internal/auth/token"
 	"healmata_backend/internal/auth/validator"
+	"healmata_backend/pkg/email"
 )
 
-func registerAuthRoutes(r *gin.Engine, db *pgxpool.Pool) {
+func registerAuthRoutes(r *gin.Engine, db *pgxpool.Pool, emailSender email.EmailSender) {
 	// Register custom validators
 	validator.RegisterCustomValidators()
 	// 1. Initialize JWT Manager (load secret from environment or fallback)
@@ -31,7 +32,7 @@ func registerAuthRoutes(r *gin.Engine, db *pgxpool.Pool) {
 	repository := repository.NewAuthRepository(db)
 
 	// 3. Initialize service
-	authService := service.NewAuthService(repository, db, jwtManager)
+	authService := service.NewAuthService(repository, db, jwtManager, emailSender)
 
 	// 4. Initialize handler
 	h := handler.NewAuthHandler(authService)
@@ -46,5 +47,8 @@ func registerAuthRoutes(r *gin.Engine, db *pgxpool.Pool) {
 		v1Auth := v1.Group("/auth")
 		v1Auth.POST("/register", middleware.ValidateRegister(), h.Register)
 		v1Auth.POST("/login", middleware.ValidateLogin(), h.Login)
+		v1Auth.POST("/forgot-password", middleware.ValidateForgotPassword(), h.ForgotPassword)
+		v1Auth.POST("/verify-reset-otp", middleware.ValidateVerifyResetOtp(), h.VerifyResetOtp)
+		v1Auth.POST("/reset-password", middleware.ValidateResetPassword(), h.ResetPassword)
 	}
 }

@@ -64,11 +64,7 @@ func (jm *JWTManager) GenerateAccessAndRefreshToken(userID string) (string, stri
 	if err != nil {
 		return "", "", "", 0, err
 	}
-	// Waiting for approved.
-	// refreshToken, err := jm.GenerateToken(userID, jm.refreshExpiry)
-	// if err != nil {
-	// 	return "", "", "",0, err
-	// }
+
 	rawRefreshToken, err := GenerateSecureRandomString(32)
 	if err != nil {
 		return "", "", "", 0, err

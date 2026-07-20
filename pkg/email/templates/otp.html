@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mã xác thực OTP</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 0;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            background-color: #beffaf;
+            color: #000000;
+            padding: 20px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .content {
+            padding: 30px;
+            color: #333333;
+            line-height: 1.6;
+        }
+        .otp-box {
+            background-color: #beffaf;
+            border: 2px dashed #558054;
+            color: #000000;
+            text-align: center;
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .footer {
+            background-color: #beffaf;
+            color: #777777;
+            text-align: center;
+            padding: 15px;
+            font-size: 12px;
+            border-top: 1px solid #dddddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            {{.MailFromName}} - Verify OTP
+        </div>
+        <div class="content">
+            <p>Xin chào,</p>
+            <p>Bạn vừa yêu cầu đặt lại mật khẩu cho tài khoản của mình. Dưới đây là mã xác thực (OTP) của bạn:</p>
+            
+            <div class="otp-box">{{.OTPCode}}</div>
+            
+            <p>Mã này có hiệu lực trong <strong>5 phút</strong>. Vui lòng không chia sẻ mã này cho bất kỳ ai để đảm bảo an toàn cho tài khoản của bạn.</p>
+            <p>Nếu bạn không thực hiện yêu cầu này, hãy bỏ qua email này hoặc liên hệ với bộ phận hỗ trợ.</p>
+            <p>Trân trọng,</p>
+            <p><strong>Đội ngũ {{.MailFromName}}</strong></p>
+        </div>
+        <div class="footer">
+            &copy; 2026 {{.MailFromName}}. All rights reserved.
+        </div>
+    </div>
+</body>
+</html>

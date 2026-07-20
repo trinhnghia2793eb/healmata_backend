@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"healmata_backend/internal/auth/dto"
-	authError "healmata_backend/internal/auth/errors"
+	authErrors "healmata_backend/internal/auth/errors"
 	"healmata_backend/internal/auth/repository"
 	"healmata_backend/pkg/db"
 	"log"
@@ -30,16 +30,16 @@ func (s *authService) Register(ctx context.Context, req *dto.RegisterRequestDTO,
 	existingUser, err := s.repo.GetUserByIdentifier(ctx, req.Identifier)
 	if err == nil && existingUser != nil {
 		if isEmail && existingUser.Email != "" {
-			return nil, authError.ErrEmailExists
+			return nil, registerErr.EmailExists
 		} else if !isEmail && existingUser.Phone != "" {
-			return nil, authError.ErrPhoneExists
+			return nil, registerErr.PhoneExists
 		}
 	}
 
 	// 3. Hash Password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, authError.ErrInternalError
+		return nil, registerErr.InternalError
 	}
 
 	// 4. Build user model
@@ -60,9 +60,9 @@ func (s *authService) Register(ctx context.Context, req *dto.RegisterRequestDTO,
 			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 				switch pgErr.ConstraintName {
 				case "users_email_unique_idx":
-					return authError.ErrEmailExists
+					return registerErr.EmailExists
 				case "users_phone_key":
-					return authError.ErrPhoneExists
+					return registerErr.PhoneExists
 				}
 			}
 			return err
@@ -111,11 +111,11 @@ func (s *authService) Register(ctx context.Context, req *dto.RegisterRequestDTO,
 
 	if err != nil {
 		log.Printf("[Register Service] underlying error: %v", err)
-		var appErr *authError.AppError
+		var appErr *authErrors.AppError
 		if errors.As(err, &appErr) {
 			return nil, appErr
 		}
-		return nil, authError.ErrInternalError
+		return nil, registerErr.InternalError
 	}
 
 	return response, nil

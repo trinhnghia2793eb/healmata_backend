@@ -3,6 +3,9 @@ export
 
 export GOOSE_DBSTRING=postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)
 # Goose commands
+format-project:
+		gofmt -w .
+
 migrate-up:
 		goose up
 
@@ -22,8 +25,8 @@ migrate-reset:
 test-db:
 		go test ./internal/db/migrations/... -v -count=1
 
+test-auth:
+		go test ./internal/auth/handler/... -v -count=1
+
 run:
 		go run ./cmd/server
-
-test:
-		go test ./internal/auth/handler/... -v -count=1
