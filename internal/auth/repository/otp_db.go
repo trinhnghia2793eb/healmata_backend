@@ -2,10 +2,10 @@ package repository
 
 import (
 	"context"
-    "errors"
+	"errors"
 
+	"github.com/jackc/pgx/v5"
 	"healmata_backend/internal/auth/model"
-    "github.com/jackc/pgx/v5"
 )
 
 func (r *authRepository) CreateOtpRequest(ctx context.Context, tx pgx.Tx, payload *CreateOtpRequestPayload) (*model.OtpRequest, error) {
@@ -15,7 +15,7 @@ func (r *authRepository) CreateOtpRequest(ctx context.Context, tx pgx.Tx, payloa
 		RETURNING id, attempts, created_at
 	`
 	var otpReq model.OtpRequest
-    // sử dụng tx truyền từ tầng Service xuống
+	// sử dụng tx truyền từ tầng Service xuống
 	err := tx.QueryRow(ctx, query,
 		payload.Identifier, payload.OtpHash, payload.Purpose, payload.ExpiresAt,
 	).Scan(
@@ -43,17 +43,17 @@ func (r *authRepository) GetLatestOtpRequest(ctx context.Context, identifier str
 		LIMIT 1
 	`
 	var otpReq model.OtpRequest
-    // Hàm đọc sử dụng r.db
+	// Hàm đọc sử dụng r.db
 	err := r.db.QueryRow(ctx, query, identifier, purpose).Scan(
-		&otpReq.ID, 
-		&otpReq.Identifier, 
-		&otpReq.OtpHash, 
+		&otpReq.ID,
+		&otpReq.Identifier,
+		&otpReq.OtpHash,
 		&otpReq.Purpose,
-		&otpReq.Attempts, 
-		&otpReq.ExpiresAt, 
-		&otpReq.VerifiedAt, 
-		&otpReq.ResetTokenHash, 
-		&otpReq.TokenExpiresAt, 
+		&otpReq.Attempts,
+		&otpReq.ExpiresAt,
+		&otpReq.VerifiedAt,
+		&otpReq.ResetTokenHash,
+		&otpReq.TokenExpiresAt,
 		&otpReq.CreatedAt,
 	)
 

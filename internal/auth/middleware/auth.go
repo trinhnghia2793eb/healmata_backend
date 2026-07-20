@@ -5,17 +5,22 @@ import (
 	"strings"
 
 	"healmata_backend/internal/auth/dto"
-	customErrors "healmata_backend/internal/auth/errors" // Trỏ tới file chứa NewValidationError
+	authErrors "healmata_backend/internal/auth/errors"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 )
 
+var validationErr = authErrors.Validation
+var registerErr = authErrors.Register
+var verifyOtpErr = authErrors.VerifyOtp
+var resetPasswordErr = authErrors.ResetPassword
+
+// register
 func ValidateRegister() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req dto.RegisterRequestDTO
 
-		// ShouldBindJSON bây giờ sẽ chạy MỌI THỨ: từ required, min=8 cho đến is_fullname, is_identifier
 		if err := c.ShouldBindJSON(&req); err != nil {
 			var ve validator.ValidationErrors
 
@@ -23,37 +28,22 @@ func ValidateRegister() gin.HandlerFunc {
 				for _, fe := range ve {
 					switch fe.Field() {
 					case "fullName":
-						c.JSON(customErrors.ErrInvalidName.HTTPStatus, gin.H{
-							"success": false,
-							"error":   customErrors.ErrInvalidName,
-						})
+						authErrors.ReturnAppError(c, registerErr.InvalidName)
 						c.Abort()
 						return
 					case "password":
-						c.JSON(customErrors.ErrInvalidPassword.HTTPStatus, gin.H{
-							"success": false,
-							"error":   customErrors.ErrInvalidPassword,
-						})
+						authErrors.ReturnAppError(c, registerErr.InvalidPasswordReg)
 						c.Abort()
 						return
 					case "confirmPassword":
-						c.JSON(customErrors.ErrConfirmPasswordMismatch.HTTPStatus, gin.H{
-							"success": false,
-							"error":   customErrors.ErrConfirmPasswordMismatch,
-						})
+						authErrors.ReturnAppError(c, registerErr.ConfirmPasswordMismatch)
 						c.Abort()
 						return
 					case "identifier":
 						if strings.Contains(req.Identifier, "@") {
-							c.JSON(customErrors.ErrInvalidEmail.HTTPStatus, gin.H{
-								"success": false,
-								"error":   customErrors.ErrInvalidEmail,
-							})
+							authErrors.ReturnAppError(c, validationErr.InvalidEmail)
 						} else {
-							c.JSON(customErrors.ErrInvalidPhone.HTTPStatus, gin.H{
-								"success": false,
-								"error":   customErrors.ErrInvalidPhone,
-							})
+							authErrors.ReturnAppError(c, validationErr.InvalidPhone)
 						}
 						c.Abort()
 						return
@@ -61,20 +51,54 @@ func ValidateRegister() gin.HandlerFunc {
 				}
 			}
 
-			// Lỗi JSON sai cú pháp
-			c.JSON(customErrors.ErrInvalidJSON.HTTPStatus, gin.H{
-				"success": false,
-				"error":   customErrors.ErrInvalidJSON,
-			})
+			authErrors.ReturnAppError(c, validationErr.InvalidJson)
 			c.Abort()
 			return
 		}
 
-		// Chỉ TrimSpace khi mọi thứ đã hợp lệ tuyệt đối
 		req.FullName = strings.TrimSpace(req.FullName)
 		req.Identifier = strings.TrimSpace(req.Identifier)
 
 		c.Set("register_req", &req)
+		c.Next()
+	}
+}
+
+// login
+func ValidateLogin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req dto.LoginRequestDTO
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			var ve validator.ValidationErrors
+
+			if errors.As(err, &ve) {
+				for _, fe := range ve {
+					switch fe.Field() {
+					case "identifier":
+						if strings.Contains(req.Identifier, "@") {
+							authErrors.ReturnAppError(c, validationErr.InvalidEmail)
+						} else {
+							authErrors.ReturnAppError(c, validationErr.InvalidPhone)
+						}
+						c.Abort()
+						return
+					case "password":
+						authErrors.ReturnAppError(c, validationErr.InvalidPassword)
+						c.Abort()
+						return
+					}
+				}
+			}
+
+			authErrors.ReturnAppError(c, validationErr.InvalidJson)
+			c.Abort()
+			return
+		}
+
+		req.Identifier = strings.TrimSpace(req.Identifier)
+
+		c.Set("login_req", &req)
 		c.Next()
 	}
 }
@@ -94,15 +118,9 @@ func ValidateForgotPassword() gin.HandlerFunc {
 					switch fe.Field() {
 					case "identifier":
 						if strings.Contains(req.Identifier, "@") {
-							c.JSON(customErrors.ErrInvalidEmail.HTTPStatus, gin.H{
-								"success": false,
-								"error":   customErrors.ErrInvalidEmail,
-							})
+							authErrors.ReturnAppError(c, validationErr.InvalidEmail)
 						} else {
-							c.JSON(customErrors.ErrInvalidPhone.HTTPStatus, gin.H{
-								"success": false,
-								"error":   customErrors.ErrInvalidPhone,
-							})
+							authErrors.ReturnAppError(c, validationErr.InvalidPhone)
 						}
 						c.Abort()
 						return
@@ -110,18 +128,13 @@ func ValidateForgotPassword() gin.HandlerFunc {
 				}
 			}
 
-			// Bắt lỗi gửi lên JSON sai cấu trúc (fallback từ customErrors đã có sẵn)
-			c.JSON(customErrors.ErrInvalidJSON.HTTPStatus, gin.H{
-				"success": false,
-				"error":   customErrors.ErrInvalidJSON,
-			})
+			authErrors.ReturnAppError(c, validationErr.InvalidJson)
 			c.Abort()
 			return
 		}
 
 		req.Identifier = strings.TrimSpace(req.Identifier)
 
-		// Lưu dữ liệu sạch vào context để Handler sử dụng
 		c.Set("forgot_password_req", &req)
 		c.Next()
 	}
@@ -139,27 +152,18 @@ func ValidateVerifyResetOtp() gin.HandlerFunc {
 				for _, fe := range ve {
 					switch fe.Field() {
 					case "Otp":
-						c.JSON(customErrors.ErrInvalidOtp.HTTPStatus, gin.H{
-							"success": false,
-							"error":   customErrors.ErrInvalidOtp,
-						})
+						authErrors.ReturnAppError(c, verifyOtpErr.InvalidOtp)
 						c.Abort()
 						return
 					case "ResetRequestId":
-						c.JSON(customErrors.ErrOtpInternal.HTTPStatus, gin.H{
-							"success": false,
-							"error": customErrors.ErrOtpInternal,
-						})
+						authErrors.ReturnAppError(c, verifyOtpErr.InternalError)
 						c.Abort()
 						return
 					}
 				}
 			}
 
-			c.JSON(customErrors.ErrInvalidJSON.HTTPStatus, gin.H{
-				"success": false,
-				"error":   customErrors.ErrInvalidJSON,
-			})
+			authErrors.ReturnAppError(c, validationErr.InvalidJson)
 			c.Abort()
 			return
 		}
@@ -184,34 +188,22 @@ func ValidateResetPassword() gin.HandlerFunc {
 				for _, fe := range ve {
 					switch fe.Field() {
 					case "newPassword":
-						c.JSON(customErrors.ErrPasswordInvalid.HTTPStatus, gin.H{
-							"success": false,
-							"error":   customErrors.ErrPasswordInvalid,
-						})
+						authErrors.ReturnAppError(c, resetPasswordErr.PasswordInvalid)
 						c.Abort()
 						return
 					case "confirmPassword":
-						c.JSON(customErrors.ErrPasswordMismatch.HTTPStatus, gin.H{
-							"success": false,
-							"error":   customErrors.ErrPasswordMismatch,
-						})
+						authErrors.ReturnAppError(c, resetPasswordErr.PasswordMismatch)
 						c.Abort()
 						return
 					case "resetToken":
-						c.JSON(customErrors.ErrResetTokenExpired.HTTPStatus, gin.H{
-							"success": false,
-							"error":   customErrors.ErrResetTokenExpired,
-						})
+						authErrors.ReturnAppError(c, resetPasswordErr.ResetTokenExpired)
 						c.Abort()
 						return
 					}
 				}
 			}
 
-			c.JSON(customErrors.ErrInvalidJSON.HTTPStatus, gin.H{
-				"success": false,
-				"error":   customErrors.ErrInvalidJSON,
-			})
+			authErrors.ReturnAppError(c, validationErr.InvalidJson)
 			c.Abort()
 			return
 		}

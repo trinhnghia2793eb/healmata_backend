@@ -2,7 +2,7 @@ package dto
 
 type VerifyResetOtpRequestDTO struct {
 	ResetRequestId string `json:"resetRequestId" binding:"required,uuid"`
-	Otp string `json:"otp" binding:"required,numeric,len=6"`
+	Otp            string `json:"otp" binding:"required,numeric,len=6"`
 }
 
 type VerifyResetOtpResponseDTO struct {

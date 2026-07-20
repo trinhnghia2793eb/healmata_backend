@@ -37,25 +37,25 @@ func TestForgotPassword(t *testing.T) {
 
 	// testCase struct
 	type testCase struct {
-		name string
-		method string
-		url string
-		setupDB func(t *testing.T, pool *pgxpool.Pool, ctx context.Context) // Chuẩn bị dữ liệu mẫu
-		requestBody interface{}                                             // DTO hoặc raw map để test lỗi format
+		name           string
+		method         string
+		url            string
+		setupDB        func(t *testing.T, pool *pgxpool.Pool, ctx context.Context) // Prepare sample data
+		requestBody    interface{}                                                 // DTO / raw map to test format error
 		expectedStatus int
-		checkResponse func(t *testing.T, resp map[string]interface{})       // Check returned JSON
-		checkDB func(t *testing.T, pool *pgxpool.Pool, ctx context.Context) // Check DB change
+		checkResponse  func(t *testing.T, resp map[string]interface{})             // Check returned JSON
+		checkDB        func(t *testing.T, pool *pgxpool.Pool, ctx context.Context) // Check DB change
 	}
 
 	// ==============================================================================================================================================
-	// test cases 
+	// test cases
 	tests := []testCase{
-		// ======================================================================= 
+		// =======================================================================
 		// POST /v1/auth/forgot-password
 		{
-			name: "TC1.1 - Success (Email)",
+			name:   "TC1.1 - Success (Email)",
 			method: "POST",
-			url: "/v1/auth/forgot-password",
+			url:    "/v1/auth/forgot-password",
 			setupDB: func(t *testing.T, pool *pgxpool.Pool, ctx context.Context) {
 				_, err := pool.Exec(ctx, `
 					INSERT INTO users (full_name, email, password_hash)
@@ -112,9 +112,9 @@ func TestForgotPassword(t *testing.T) {
 		// 	},
 		// },
 		{
-			name: "TC1.3 - Failure (User Not Found)",
+			name:   "TC1.3 - Failure (User Not Found)",
 			method: "POST",
-			url: "/v1/auth/forgot-password",
+			url:    "/v1/auth/forgot-password",
 			setupDB: func(t *testing.T, pool *pgxpool.Pool, ctx context.Context) {
 				// Không insert user nào
 			},
@@ -130,11 +130,11 @@ func TestForgotPassword(t *testing.T) {
 			checkDB: nil,
 		},
 		{
-			name: "TC1.4 - Failure (Validation - Empty Identifier)",
-			method: "POST",
-			url: "/v1/auth/forgot-password",
+			name:    "TC1.4 - Failure (Validation - Empty Identifier)",
+			method:  "POST",
+			url:     "/v1/auth/forgot-password",
 			setupDB: func(t *testing.T, pool *pgxpool.Pool, ctx context.Context) {},
-			requestBody: map[string]string{ // use 
+			requestBody: map[string]string{ // use
 				"identifier": "   ",
 			},
 			expectedStatus: http.StatusUnprocessableEntity, // customErrors trả về HTTP 422
@@ -147,9 +147,9 @@ func TestForgotPassword(t *testing.T) {
 			checkDB: nil,
 		},
 		{
-			name: "TC1.5 - Failure (Validation - Invalid Format)",
-			method: "POST",
-			url: "/v1/auth/forgot-password",
+			name:    "TC1.5 - Failure (Validation - Invalid Format)",
+			method:  "POST",
+			url:     "/v1/auth/forgot-password",
 			setupDB: func(t *testing.T, pool *pgxpool.Pool, ctx context.Context) {},
 			requestBody: dto.ForgotPasswordRequestDTO{
 				Identifier: "invalid-email-format@",
@@ -158,14 +158,14 @@ func TestForgotPassword(t *testing.T) {
 			checkResponse: func(t *testing.T, resp map[string]interface{}) {
 				assert.False(t, resp["success"].(bool))
 				errMap := resp["error"].(map[string]interface{})
-				assert.Equal(t, "AUTH_REG_006", errMap["code"]) // ErrInvalidEmail
+				assert.Equal(t, "AUTH_VAL_003", errMap["code"]) // ErrInvalidEmail
 			},
 			checkDB: nil,
 		},
 		{
-			name: "TC1.6 - Failure (Too Many Requests)",
+			name:   "TC1.6 - Failure (Too Many Requests)",
 			method: "POST",
-			url: "/v1/auth/forgot-password",
+			url:    "/v1/auth/forgot-password",
 			setupDB: func(t *testing.T, pool *pgxpool.Pool, ctx context.Context) {
 				// 1. Tạo user
 				_, err := pool.Exec(ctx, `
@@ -193,12 +193,12 @@ func TestForgotPassword(t *testing.T) {
 			checkDB: nil,
 		},
 
-		// ======================================================================= 
+		// =======================================================================
 		// POST /v1/auth/verify-reset-otp
 		{
-			name: "TC2.1 - Success",
+			name:   "TC2.1 - Success",
 			method: "POST",
-			url: "/v1/auth/verify-reset-otp",
+			url:    "/v1/auth/verify-reset-otp",
 			setupDB: func(t *testing.T, pool *pgxpool.Pool, ctx context.Context) {
 				_, err := pool.Exec(ctx, `
 					INSERT INTO otp_requests (id, identifier, otp_hash, purpose, expires_at, attempts, created_at)
@@ -225,9 +225,9 @@ func TestForgotPassword(t *testing.T) {
 			},
 		},
 		{
-			name: "TC2.2 - Failure (Invalid OTP)",
+			name:   "TC2.2 - Failure (Invalid OTP)",
 			method: "POST",
-			url: "/v1/auth/verify-reset-otp",
+			url:    "/v1/auth/verify-reset-otp",
 			setupDB: func(t *testing.T, pool *pgxpool.Pool, ctx context.Context) {
 				_, err := pool.Exec(ctx, `
 					INSERT INTO otp_requests (id, identifier, otp_hash, purpose, expires_at, attempts, created_at)
@@ -253,9 +253,9 @@ func TestForgotPassword(t *testing.T) {
 			},
 		},
 		{
-			name: "TC2.3 - Failure (Validation - Bad OTP Format)",
-			method: "POST",
-			url: "/v1/auth/verify-reset-otp",
+			name:    "TC2.3 - Failure (Validation - Bad OTP Format)",
+			method:  "POST",
+			url:     "/v1/auth/verify-reset-otp",
 			setupDB: func(t *testing.T, pool *pgxpool.Pool, ctx context.Context) {},
 			requestBody: map[string]interface{}{
 				"resetRequestId": validRequestID,
@@ -270,9 +270,9 @@ func TestForgotPassword(t *testing.T) {
 			checkDB: nil,
 		},
 		{
-			name: "TC2.4 - Failure (Expired OTP)",
+			name:   "TC2.4 - Failure (Expired OTP)",
 			method: "POST",
-			url: "/v1/auth/verify-reset-otp",
+			url:    "/v1/auth/verify-reset-otp",
 			setupDB: func(t *testing.T, pool *pgxpool.Pool, ctx context.Context) {
 				_, err := pool.Exec(ctx, `
 					INSERT INTO otp_requests (id, identifier, otp_hash, purpose, expires_at, attempts, created_at)
@@ -293,9 +293,9 @@ func TestForgotPassword(t *testing.T) {
 			checkDB: nil,
 		},
 		{
-			name: "TC2.5 - Failure (Too Many Attempts)",
+			name:   "TC2.5 - Failure (Too Many Attempts)",
 			method: "POST",
-			url: "/v1/auth/verify-reset-otp",
+			url:    "/v1/auth/verify-reset-otp",
 			setupDB: func(t *testing.T, pool *pgxpool.Pool, ctx context.Context) {
 				_, err := pool.Exec(ctx, `
 					INSERT INTO otp_requests (id, identifier, otp_hash, purpose, expires_at, attempts, created_at)
@@ -316,9 +316,9 @@ func TestForgotPassword(t *testing.T) {
 			checkDB: nil,
 		},
 		{
-			name: "TC2.6 - Failure (Already Verified)",
+			name:   "TC2.6 - Failure (Already Verified)",
 			method: "POST",
-			url: "/v1/auth/verify-reset-otp",
+			url:    "/v1/auth/verify-reset-otp",
 			setupDB: func(t *testing.T, pool *pgxpool.Pool, ctx context.Context) {
 				_, err := pool.Exec(ctx, `
 					INSERT INTO otp_requests (id, identifier, otp_hash, purpose, expires_at, attempts, verified_at, created_at)
@@ -339,7 +339,7 @@ func TestForgotPassword(t *testing.T) {
 			checkDB: nil,
 		},
 
-		// ======================================================================= 
+		// =======================================================================
 		// POST /v1/auth/reset-password
 		{
 			name:   "TC3.1 - Success (Reset Password)",
@@ -384,9 +384,9 @@ func TestForgotPassword(t *testing.T) {
 			},
 		},
 		{
-			name:   "TC3.2 - Failure (Validation - Password Too Short)",
-			method: "POST",
-			url:    "/v1/auth/reset-password",
+			name:    "TC3.2 - Failure (Validation - Password Too Short)",
+			method:  "POST",
+			url:     "/v1/auth/reset-password",
 			setupDB: func(t *testing.T, pool *pgxpool.Pool, ctx context.Context) {},
 			requestBody: dto.ResetPasswordRequestDTO{
 				ResetToken:      validResetToken,
@@ -402,9 +402,9 @@ func TestForgotPassword(t *testing.T) {
 			checkDB: nil,
 		},
 		{
-			name:   "TC3.3 - Failure (Validation - Password Mismatch)",
-			method: "POST",
-			url:    "/v1/auth/reset-password",
+			name:    "TC3.3 - Failure (Validation - Password Mismatch)",
+			method:  "POST",
+			url:     "/v1/auth/reset-password",
 			setupDB: func(t *testing.T, pool *pgxpool.Pool, ctx context.Context) {},
 			requestBody: dto.ResetPasswordRequestDTO{
 				ResetToken:      validResetToken,
@@ -465,11 +465,10 @@ func TestForgotPassword(t *testing.T) {
 			checkResponse: func(t *testing.T, resp map[string]interface{}) {
 				assert.False(t, resp["success"].(bool))
 				errMap := resp["error"].(map[string]interface{})
-				assert.Equal(t, "AUTH_RESET_003", errMap["code"]) 
+				assert.Equal(t, "AUTH_RESET_003", errMap["code"])
 			},
 			checkDB: nil,
 		},
-
 	}
 
 	// ==============================================================================================================================================

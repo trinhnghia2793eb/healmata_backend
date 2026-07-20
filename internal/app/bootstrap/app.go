@@ -1,13 +1,13 @@
 package bootstrap
 
 import (
-	"healmata_backend/pkg/email"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"healmata_backend/pkg/email"
 )
 
 type App struct {
-	Config *Config
-	DB     *pgxpool.Pool
+	Config      *Config
+	DB          *pgxpool.Pool
 	EmailSender email.EmailSender
 }
 
@@ -37,8 +37,8 @@ func NewApp() (*App, error) {
 
 	// return
 	return &App{
-		Config: cfg,
-		DB:     db,
+		Config:      cfg,
+		DB:          db,
 		EmailSender: emailSender,
 	}, nil
 }

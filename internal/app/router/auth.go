@@ -7,13 +7,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"healmata_backend/pkg/email"
 	"healmata_backend/internal/auth/handler"
 	"healmata_backend/internal/auth/middleware"
 	"healmata_backend/internal/auth/repository"
 	"healmata_backend/internal/auth/service"
 	"healmata_backend/internal/auth/token"
 	"healmata_backend/internal/auth/validator"
+	"healmata_backend/pkg/email"
 )
 
 func registerAuthRoutes(r *gin.Engine, db *pgxpool.Pool, emailSender email.EmailSender) {
@@ -46,6 +46,7 @@ func registerAuthRoutes(r *gin.Engine, db *pgxpool.Pool, emailSender email.Email
 	{
 		v1Auth := v1.Group("/auth")
 		v1Auth.POST("/register", middleware.ValidateRegister(), h.Register)
+		v1Auth.POST("/login", middleware.ValidateLogin(), h.Login)
 		v1Auth.POST("/forgot-password", middleware.ValidateForgotPassword(), h.ForgotPassword)
 		v1Auth.POST("/verify-reset-otp", middleware.ValidateVerifyResetOtp(), h.VerifyResetOtp)
 		v1Auth.POST("/reset-password", middleware.ValidateResetPassword(), h.ResetPassword)

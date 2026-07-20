@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	//
+	// bootstrap files
 	app, err := bootstrap.NewApp()
 	if err != nil {
 		log.Fatal("Lỗi xảy ra khi khởi chạy app: ", err)
@@ -28,13 +28,7 @@ func main() {
 
 	router.RegisterRoutes(r, app.DB, app.EmailSender)
 
-	//
-	log.Printf(
-		"%s is running on :%s",
-		app.Config.AppName,
-		app.Config.AppPort,
-	)
-
+	// run server
 	if err := r.Run(":" + app.Config.AppPort); err != nil {
 		log.Fatal(err)
 	}
