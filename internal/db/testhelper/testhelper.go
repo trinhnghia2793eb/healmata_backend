@@ -10,13 +10,18 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib" // pgx driver for database/sql (used by Goose)
 	"github.com/joho/godotenv"
 	"github.com/pressly/goose/v3"
+
+	"healmata_backend/internal/app/router"
+	dbpkg "healmata_backend/pkg/db"
 )
 
 // loadDotEnv attempts to find and load the .env file from the project root.
@@ -77,64 +82,87 @@ func dsn() string {
 	)
 }
 
-// SetupTestDB connects to PostgreSQL, runs all Goose migrations (Up),
-// and registers a t.Cleanup handler that runs Goose Reset then closes
-// the pool. Returns a *pgxpool.Pool ready for use.
-//
-// Usage:
-//
-//	pool := testhelper.SetupTestDB(t)
+// =======================================================================
+// setupTestDB
+var (
+	dbSetupOnce sync.Once
+	globalPool  *pgxpool.Pool
+)
+
 func SetupTestDB(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 
-	connStr := dsn()
+	// =======================================================================
+	// 1. Chỉ chạy Migration và tạo Pool đúng 1 lần duy nhất
+	dbSetupOnce.Do(func() {
+		connStr := dsn()
 
-	// --- 1. Run migrations via database/sql + goose ---
-	// Goose requires a *sql.DB (not pgxpool). We open a separate
-	// sql.DB just for migration management.
-	sqlDB, err := sql.Open("pgx", connStr)
-	if err != nil {
-		t.Fatalf("testhelper: open sql.DB for goose: %v", err)
-	}
-
-	goose.SetDialect("postgres") //nolint:errcheck
-	goose.SetLogger(goose.NopLogger())
-	migrDir := migrationsDir()
-
-	if err := goose.Up(sqlDB, migrDir); err != nil {
-		_ = sqlDB.Close()
-		t.Fatalf("testhelper: goose.Up failed: %v", err)
-	}
-
-	// --- 2. Connect pgxpool for the actual test queries ---
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	pool, err := pgxpool.New(ctx, "postgresql://"+connStr)
-	if err != nil {
-		// Fallback: pgxpool also accepts keyword=value DSN via ParseConfig
-		cfg, cfgErr := pgxpool.ParseConfig(connStr)
-		if cfgErr != nil {
-			_ = sqlDB.Close()
-			t.Fatalf("testhelper: parse pgxpool config: %v", cfgErr)
-		}
-		pool, err = pgxpool.NewWithConfig(ctx, cfg)
+		sqlDB, err := sql.Open("pgx", connStr)
 		if err != nil {
-			_ = sqlDB.Close()
-			t.Fatalf("testhelper: create pgxpool: %v", err)
+			panic(fmt.Sprintf("testhelper: open sql.DB for goose: %v", err))
 		}
-	}
 
-	// --- 3. Register cleanup: reset migrations + close connections ---
-	t.Cleanup(func() {
-		if err := goose.Reset(sqlDB, migrDir); err != nil {
-			t.Logf("testhelper cleanup: goose.Reset error (non-fatal): %v", err)
+		goose.SetDialect("postgres")
+		goose.SetLogger(goose.NopLogger())
+		migrDir := migrationsDir()
+
+		if err := goose.Up(sqlDB, migrDir); err != nil {
+			_ = sqlDB.Close()
+			panic(fmt.Sprintf("testhelper: goose.Up failed: %v", err))
 		}
-		pool.Close()
+		// Đóng sqlDB vì chúng ta sẽ dùng pgxpool cho các tác vụ sau
 		_ = sqlDB.Close()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		pool, err := pgxpool.New(ctx, connStr)
+		if err != nil {
+			panic(fmt.Sprintf("testhelper: create pgxpool: %v", err))
+		}
+
+		globalPool = pool
 	})
 
-	return pool
+	// 2. Dọn dẹp dữ liệu của TẤT CẢ các bảng trước khi chạy test case này
+	TruncateTables(t, globalPool)
+
+	// Không dùng goose.Reset() trong Cleanup nữa, để tái sử dụng schema
+	return globalPool
+}
+
+// TruncateTables xóa toàn bộ dữ liệu nhưng giữ nguyên cấu trúc bảng
+func TruncateTables(t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Liệt kê các bảng cần dọn dẹp (sử dụng CASCADE để tự động clear các bảng có khóa ngoại)
+	// Dựa theo cấu trúc DB của bạn, mình đã đưa sẵn 5 bảng chính
+	query := `TRUNCATE TABLE users, social_accounts, refresh_tokens, otp_requests, user_sessions CASCADE;`
+
+	_, err := pool.Exec(ctx, query)
+	if err != nil {
+		t.Fatalf("testhelper: failed to truncate tables: %v", err)
+	}
+}
+
+// =======================================================================
+// test router
+func SetupTestRouter(pool *pgxpool.Pool, emailSender *MockEmailSender) *gin.Engine {
+	r := gin.New()
+
+	txManager := dbpkg.NewSQLTxManager(pool)
+
+	deps := router.Dependencies{
+		DB:          pool,
+		Transactor:  txManager,
+		EmailSender: emailSender,
+	}
+
+	router.RegisterRoutes(r, deps)
+
+	return r
 }
 
 // =======================================================================
@@ -150,3 +178,5 @@ func (m *MockEmailSender) SendOTP(to string, otpCode string) error {
 	fmt.Printf("[Test] Mock Email: Gửi OTP %s tới %s\n", otpCode, to)
 	return nil
 }
+
+// =======================================================================

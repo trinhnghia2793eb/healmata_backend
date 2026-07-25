@@ -31,7 +31,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	router.RegisterRoutes(r, app.DB, app.EmailSender)
+	// declare dependencies object
+	deps := router.Dependencies{
+		DB:          app.DB,
+		Transactor:  app.Transactor,
+		EmailSender: app.EmailSender,
+	}
+
+	router.RegisterRoutes(r, deps)
 
 	// run server
 	if err := r.Run(":" + app.Config.AppPort); err != nil {

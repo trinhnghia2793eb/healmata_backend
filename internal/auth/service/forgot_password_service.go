@@ -7,20 +7,23 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"healmata_backend/internal/auth/dto"
 	"healmata_backend/internal/auth/model"
 	"healmata_backend/internal/auth/otp"
 	"healmata_backend/internal/auth/repository"
-	"healmata_backend/pkg/db"
 
-	"github.com/jackc/pgx/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
 func (s *authService) ForgotPassword(ctx context.Context, req *dto.ForgotPasswordRequestDTO) (*dto.ForgotPasswordResponseDTO, error) {
 	identifier := req.Identifier
+
+	if !strings.Contains(identifier, "@") {
+		return nil, forgotPasswordErr.PhoneNotSupported
+	}
 
 	user, err := s.repo.GetUserByIdentifier(ctx, identifier)
 	if err != nil || user == nil || user.ID == "" {
@@ -54,8 +57,8 @@ func (s *authService) ForgotPassword(ctx context.Context, req *dto.ForgotPasswor
 	}
 
 	var newOtp *model.OtpRequest
-	err = db.WithTransaction(ctx, s.dbPool, func(tx pgx.Tx) error {
-		createdOtp, err := s.repo.CreateOtpRequest(ctx, tx, payload)
+	err = s.transactor.WithTransaction(ctx, func(txCtx context.Context) error {
+		createdOtp, err := s.repo.CreateOtpRequest(txCtx, payload)
 		if err != nil {
 			return err
 		}
@@ -95,8 +98,8 @@ func (s *authService) VerifyResetOtp(ctx context.Context, req *dto.VerifyResetOt
 	var response *dto.VerifyResetOtpResponseDTO
 	var businessErr error // business error flag (for return error without rollback transaction)
 
-	err := db.WithTransaction(ctx, s.dbPool, func(tx pgx.Tx) error {
-		otpReq, err := s.repo.GetOtpRequestByID(ctx, tx, req.ResetRequestId)
+	err := s.transactor.WithTransaction(ctx, func(txCtx context.Context) error {
+		otpReq, err := s.repo.GetOtpRequestByID(txCtx, req.ResetRequestId)
 		if err != nil {
 			return err
 		}
@@ -123,7 +126,7 @@ func (s *authService) VerifyResetOtp(ctx context.Context, req *dto.VerifyResetOt
 		// wrong OTP --> update attempt --> save into DB --> return nil
 		if inputOtpHash != otpReq.OtpHash {
 			otpReq.Attempts++
-			if updateErr := s.repo.UpdateOtpRequest(ctx, tx, otpReq); updateErr != nil {
+			if updateErr := s.repo.UpdateOtpRequest(txCtx, otpReq); updateErr != nil {
 				return updateErr // Lỗi DB, Rollback
 			}
 
@@ -149,7 +152,7 @@ func (s *authService) VerifyResetOtp(ctx context.Context, req *dto.VerifyResetOt
 		otpReq.ResetTokenHash = &resetTokenDBHash
 		otpReq.TokenExpiresAt = &tokenExpiresAt
 
-		if updateErr := s.repo.UpdateOtpRequest(ctx, tx, otpReq); updateErr != nil {
+		if updateErr := s.repo.UpdateOtpRequest(txCtx, otpReq); updateErr != nil {
 			return updateErr
 		}
 
@@ -180,8 +183,8 @@ func (s *authService) ResetPassword(ctx context.Context, req *dto.ResetPasswordR
 
 	var resp dto.ResetPasswordResponseDTO
 
-	err := db.WithTransaction(ctx, s.dbPool, func(tx pgx.Tx) error {
-		otpReq, err := s.repo.GetOtpRequestByTokenHash(ctx, tx, tokenHash)
+	err := s.transactor.WithTransaction(ctx, func(txCtx context.Context) error {
+		otpReq, err := s.repo.GetOtpRequestByTokenHash(txCtx, tokenHash)
 		if err != nil {
 			return resetPasswordErr.InternalError
 		}
@@ -197,11 +200,11 @@ func (s *authService) ResetPassword(ctx context.Context, req *dto.ResetPasswordR
 		if err != nil {
 			return resetPasswordErr.InternalError
 		}
-		err = s.repo.UpdateUserPassword(ctx, tx, otpReq.Identifier, string(hashedPassword))
+		err = s.repo.UpdateUserPassword(txCtx, otpReq.Identifier, string(hashedPassword))
 		if err != nil {
 			return resetPasswordErr.InternalError
 		}
-		err = s.repo.InvalidateResetToken(ctx, tx, otpReq.ID)
+		err = s.repo.InvalidateResetToken(txCtx, otpReq.ID)
 		if err != nil {
 			return resetPasswordErr.InternalError
 		}

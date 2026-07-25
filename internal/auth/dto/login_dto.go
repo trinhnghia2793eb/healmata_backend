@@ -2,7 +2,7 @@ package dto
 
 type LoginRequestDTO struct {
 	Identifier string `json:"identifier" binding:"required,is_identifier"`
-	Password   string `json:"password" binding:"required,min=8"`
+	Password   string `json:"password" binding:"required,min=8,max=128"`
 }
 
 type LoginResponseDTO struct {

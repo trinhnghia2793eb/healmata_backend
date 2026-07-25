@@ -6,12 +6,10 @@ import (
 	"healmata_backend/internal/auth/dto"
 	authErrors "healmata_backend/internal/auth/errors"
 	"healmata_backend/internal/auth/repository"
-	"healmata_backend/pkg/db"
 	"log"
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -52,9 +50,9 @@ func (s *authService) Register(ctx context.Context, req *dto.RegisterRequestDTO,
 
 	var response *dto.RegisterResponseDTO
 	// 5. Run writes inside a transaction
-	err = db.WithTransaction(ctx, s.dbPool, func(tx pgx.Tx) error {
+	err = s.transactor.WithTransaction(ctx, func(txCtx context.Context) error {
 		// A. Create User record
-		user, err := s.repo.CreateUser(ctx, tx, userPayload)
+		user, err := s.repo.CreateUser(txCtx, userPayload)
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -69,7 +67,7 @@ func (s *authService) Register(ctx context.Context, req *dto.RegisterRequestDTO,
 		}
 
 		// B. Generate JWTs
-		accessToken, rawRefreshToken, hashedRefreshToken, expiresIn, err := s.jwtManager.GenerateAccessAndRefreshToken(user.ID)
+		accessToken, rawRefreshToken, hashedRefreshToken, expiresIn, err := s.tokenProvider.GenerateAccessAndRefreshToken(user.ID)
 		if err != nil {
 			return err
 		}
@@ -85,7 +83,7 @@ func (s *authService) Register(ctx context.Context, req *dto.RegisterRequestDTO,
 			DeviceID:  "default-device",
 			ExpiresAt: time.Now().Add(30 * 24 * time.Hour),
 		}
-		dbToken, err := s.repo.CreateRefreshToken(ctx, tx, tokenPayload)
+		dbToken, err := s.repo.CreateRefreshToken(txCtx, tokenPayload)
 		if err != nil {
 			return err
 		}
@@ -100,7 +98,7 @@ func (s *authService) Register(ctx context.Context, req *dto.RegisterRequestDTO,
 			UserAgent:      userAgent,
 		}
 
-		if _, err := s.repo.CreateSession(ctx, tx, sessionPayload); err != nil {
+		if _, err := s.repo.CreateSession(txCtx, sessionPayload); err != nil {
 			return err
 		}
 

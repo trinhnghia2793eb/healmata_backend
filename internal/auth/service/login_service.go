@@ -6,7 +6,6 @@ import (
 	"healmata_backend/internal/auth/dto"
 	authErrors "healmata_backend/internal/auth/errors"
 	"healmata_backend/internal/auth/repository"
-	"healmata_backend/pkg/db"
 	"log"
 	"time"
 
@@ -35,9 +34,9 @@ func (s *authService) Login(ctx context.Context, req *dto.LoginRequestDTO, clien
 
 	var response *dto.LoginResponseDTO
 	// 4. Generate JWT tokens and persist sessions inside a database transaction
-	err = db.WithTransaction(ctx, s.dbPool, func(tx pgx.Tx) error {
+	err = s.transactor.WithTransaction(ctx, func(txCtx context.Context) error {
 		// A. Create JWTs
-		accessToken, rawRefreshToken, hashedRefreshToken, expiresIn, err := s.jwtManager.GenerateAccessAndRefreshToken(user.ID)
+		accessToken, rawRefreshToken, hashedRefreshToken, expiresIn, err := s.tokenProvider.GenerateAccessAndRefreshToken(user.ID)
 		if err != nil {
 			return err
 		}
@@ -49,7 +48,7 @@ func (s *authService) Login(ctx context.Context, req *dto.LoginRequestDTO, clien
 			DeviceID:  "default-device",
 			ExpiresAt: time.Now().Add(30 * 24 * time.Hour),
 		}
-		dbToken, err := s.repo.CreateRefreshToken(ctx, tx, tokenPayload)
+		dbToken, err := s.repo.CreateRefreshToken(txCtx, tokenPayload)
 		if err != nil {
 			return err
 		}
@@ -63,7 +62,7 @@ func (s *authService) Login(ctx context.Context, req *dto.LoginRequestDTO, clien
 			IPAddress:      clientIP,
 			UserAgent:      userAgent,
 		}
-		if _, err := s.repo.CreateSession(ctx, tx, sessionPayload); err != nil {
+		if _, err := s.repo.CreateSession(txCtx, sessionPayload); err != nil {
 			return err
 		}
 

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"healmata_backend/internal/auth/handler"
 	"healmata_backend/internal/auth/middleware"
@@ -13,10 +12,11 @@ import (
 	"healmata_backend/internal/auth/service"
 	"healmata_backend/internal/auth/token"
 	"healmata_backend/internal/auth/validator"
+	dbpkg "healmata_backend/pkg/db"
 	"healmata_backend/pkg/email"
 )
 
-func registerAuthRoutes(r *gin.Engine, db *pgxpool.Pool, emailSender email.EmailSender) {
+func registerAuthRoutes(r *gin.Engine, db dbpkg.DBEngine, transactor dbpkg.Transactor, emailSender email.EmailSender) {
 	// Register custom validators
 	validator.RegisterCustomValidators()
 	// 1. Initialize JWT Manager (load secret from environment or fallback)
@@ -32,7 +32,7 @@ func registerAuthRoutes(r *gin.Engine, db *pgxpool.Pool, emailSender email.Email
 	repository := repository.NewAuthRepository(db)
 
 	// 3. Initialize service
-	authService := service.NewAuthService(repository, db, jwtManager, emailSender)
+	authService := service.NewAuthService(repository, transactor, jwtManager, emailSender)
 
 	// 4. Initialize handler
 	h := handler.NewAuthHandler(authService)

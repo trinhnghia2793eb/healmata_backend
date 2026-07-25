@@ -5,10 +5,8 @@ import (
 	"healmata_backend/internal/auth/dto"
 	authErrors "healmata_backend/internal/auth/errors"
 	"healmata_backend/internal/auth/repository"
-	"healmata_backend/internal/auth/token"
+	dbpkg "healmata_backend/pkg/db"
 	"healmata_backend/pkg/email"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var registerErr = authErrors.Register
@@ -25,23 +23,27 @@ type AuthService interface {
 	ResetPassword(ctx context.Context, req *dto.ResetPasswordRequestDTO) (*dto.ResetPasswordResponseDTO, error)
 }
 
+type TokenProvider interface {
+	GenerateAccessAndRefreshToken(userID string) (string, string, string, int64, error)
+}
+
 type authService struct {
-	repo        repository.AuthRepository
-	dbPool      *pgxpool.Pool
-	jwtManager  *token.JWTManager
-	emailSender email.EmailSender
+	repo          repository.AuthRepository
+	transactor    dbpkg.Transactor
+	tokenProvider TokenProvider
+	emailSender   email.EmailSender
 }
 
 func NewAuthService(
 	repo repository.AuthRepository,
-	dbPool *pgxpool.Pool,
-	jwtManager *token.JWTManager,
+	transactor dbpkg.Transactor,
+	tokenProvider TokenProvider,
 	emailSender email.EmailSender,
 ) AuthService {
 	return &authService{
-		repo:        repo,
-		dbPool:      dbPool,
-		jwtManager:  jwtManager,
-		emailSender: emailSender,
+		repo:          repo,
+		transactor:    transactor,
+		tokenProvider: tokenProvider,
+		emailSender:   emailSender,
 	}
 }

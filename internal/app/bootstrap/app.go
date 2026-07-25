@@ -1,13 +1,16 @@
 package bootstrap
 
 import (
-	"github.com/jackc/pgx/v5/pgxpool"
+	dbpkg "healmata_backend/pkg/db"
 	"healmata_backend/pkg/email"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type App struct {
 	Config      *Config
-	DB          *pgxpool.Pool
+	DB          dbpkg.DBEngine
+	Transactor  dbpkg.Transactor
 	EmailSender email.EmailSender
 }
 
@@ -25,6 +28,10 @@ func NewApp() (*App, error) {
 		return nil, err
 	}
 
+	// ==========================================
+	// init transactor using txManager
+	txManager := dbpkg.NewSQLTxManager(db)
+
 	// init email sender
 	emailSender := email.NewEmailSender(
 		cfg.SMTPHost,
@@ -35,16 +42,22 @@ func NewApp() (*App, error) {
 		cfg.MailFromName,
 	)
 
+	// ==========================================
+
 	// return
 	return &App{
 		Config:      cfg,
 		DB:          db,
+		Transactor:  txManager,
 		EmailSender: emailSender,
 	}, nil
 }
 
 func (a *App) Close() {
 	if a.DB != nil {
-		a.DB.Close()
+		// type assert into pgxpool.Pool to call Close()
+		if pool, ok := a.DB.(*pgxpool.Pool); ok {
+			pool.Close()
+		}
 	}
 }

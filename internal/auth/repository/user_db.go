@@ -3,8 +3,6 @@ package repository
 import (
 	"context"
 	"healmata_backend/internal/auth/model"
-
-	"github.com/jackc/pgx/v5"
 )
 
 func (r *authRepository) GetUserByIdentifier(ctx context.Context, identifier string) (*model.User, error) {
@@ -12,7 +10,7 @@ func (r *authRepository) GetUserByIdentifier(ctx context.Context, identifier str
 	var emailPtr, phonePtr, passwordHashPtr *string
 	query := `SELECT id, full_name, email, phone, password_hash, status, first_setup_completed, created_at, updated_at 
 				FROM users WHERE LOWER(email) = LOWER($1) OR phone = $1`
-	err := r.db.QueryRow(ctx, query, identifier).Scan(
+	err := r.getDB(ctx).QueryRow(ctx, query, identifier).Scan(
 		&user.ID,
 		&user.FullName,
 		&emailPtr,
@@ -38,14 +36,14 @@ func (r *authRepository) GetUserByIdentifier(ctx context.Context, identifier str
 	return &user, nil
 }
 
-func (r *authRepository) CreateUser(ctx context.Context, tx pgx.Tx, payload *CreateUserPayload) (*model.User, error) {
+func (r *authRepository) CreateUser(ctx context.Context, payload *CreateUserPayload) (*model.User, error) {
 	query := `
 		INSERT INTO users (full_name, email, phone, password_hash)
 		VALUES ($1, $2, $3, $4)
 		RETURNING id, status, first_setup_completed, created_at, updated_at
 	`
 	var user model.User
-	err := tx.QueryRow(ctx, query,
+	err := r.getDB(ctx).QueryRow(ctx, query,
 		payload.FullName,
 		payload.Email,
 		payload.Phone,
@@ -72,14 +70,14 @@ func (r *authRepository) CreateUser(ctx context.Context, tx pgx.Tx, payload *Cre
 	return &user, nil
 }
 
-func (r *authRepository) CreateRefreshToken(ctx context.Context, tx pgx.Tx, payload *CreateRefreshTokenPayload) (*model.RefreshTokens, error) {
+func (r *authRepository) CreateRefreshToken(ctx context.Context, payload *CreateRefreshTokenPayload) (*model.RefreshTokens, error) {
 	query := `
 		INSERT INTO refresh_tokens (user_id, token_hash, device_id, expires_at)
 		VALUES ($1, $2, $3, $4)
 		RETURNING id, created_at
 	`
 	var token model.RefreshTokens
-	err := tx.QueryRow(ctx, query,
+	err := r.getDB(ctx).QueryRow(ctx, query,
 		payload.UserID,
 		payload.TokenHash,
 		payload.DeviceID,
@@ -97,14 +95,14 @@ func (r *authRepository) CreateRefreshToken(ctx context.Context, tx pgx.Tx, payl
 	return &token, nil
 }
 
-func (r *authRepository) CreateSession(ctx context.Context, tx pgx.Tx, payload *CreateUserSessionPayload) (*model.UserSessions, error) {
+func (r *authRepository) CreateSession(ctx context.Context, payload *CreateUserSessionPayload) (*model.UserSessions, error) {
 	query := `
 		INSERT INTO user_sessions (user_id, refresh_token_id, device_id, platform, ip_address, user_agent)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, created_at
 	`
 	var session model.UserSessions
-	err := tx.QueryRow(ctx, query,
+	err := r.getDB(ctx).QueryRow(ctx, query,
 		payload.UserID,
 		payload.RefreshTokenID,
 		payload.DeviceID,
@@ -127,12 +125,12 @@ func (r *authRepository) CreateSession(ctx context.Context, tx pgx.Tx, payload *
 	return &session, nil
 }
 
-func (r *authRepository) UpdateUserPassword(ctx context.Context, tx pgx.Tx, identifier string, passwordHash string) error {
+func (r *authRepository) UpdateUserPassword(ctx context.Context, identifier string, passwordHash string) error {
 	query := `
 		UPDATE users
 		SET password_hash = $1, updated_at = CURRENT_TIMESTAMP
 		WHERE LOWER(email) = LOWER($2) OR phone = $2
 	`
-	_, err := tx.Exec(ctx, query, passwordHash, identifier)
+	_, err := r.getDB(ctx).Exec(ctx, query, passwordHash, identifier)
 	return err
 }
