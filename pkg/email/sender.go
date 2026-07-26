@@ -12,11 +12,7 @@ import (
 //go:embed templates/otp.html
 var templateFS embed.FS
 
-type EmailSender interface {
-	SendOTP(to string, otpCode string) error
-}
-
-type gomailSender struct {
+type Sender struct {
 	host            string
 	port            int
 	user            string
@@ -32,8 +28,8 @@ type otpTemplateData struct {
 }
 
 // constructor
-func NewEmailSender(host string, port int, user, password, fromAddress, fromName string) EmailSender {
-	return &gomailSender{
+func NewEmailSender(host string, port int, user, password, fromAddress, fromName string) *Sender {
+	return &Sender{
 		host:            host,
 		port:            port,
 		user:            user,
@@ -44,7 +40,7 @@ func NewEmailSender(host string, port int, user, password, fromAddress, fromName
 }
 
 // SendOTP
-func (s *gomailSender) SendOTP(to string, otpCode string) error {
+func (s *Sender) SendOTP(to string, otpCode string) error {
 	// parse file template from embed folder
 	tmpl, err := template.ParseFS(templateFS, "templates/otp.html")
 	if err != nil {

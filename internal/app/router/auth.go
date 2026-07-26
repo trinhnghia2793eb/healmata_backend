@@ -1,40 +1,36 @@
 package router
 
 import (
-	"os"
-	"time"
-
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"healmata_backend/internal/auth/handler"
 	"healmata_backend/internal/auth/middleware"
 	"healmata_backend/internal/auth/repository"
 	"healmata_backend/internal/auth/service"
-	"healmata_backend/internal/auth/token"
 	"healmata_backend/internal/auth/validator"
 	dbpkg "healmata_backend/pkg/db"
 	"healmata_backend/pkg/email"
+	"healmata_backend/pkg/jwt"
 )
 
-func registerAuthRoutes(r *gin.Engine, db dbpkg.DBEngine, transactor dbpkg.Transactor, emailSender email.EmailSender) {
+func registerAuthRoutes(
+	r *gin.Engine,
+	db *pgxpool.Pool,
+	transactor *dbpkg.SQLTxManager,
+	emailSender *email.Sender,
+	jwtManager *jwt.JWTManager,
+) {
 	// Register custom validators
 	validator.RegisterCustomValidators()
-	// 1. Initialize JWT Manager (load secret from environment or fallback)
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		jwtSecret = "heal-mata-secret-key-change-me-in-production"
-	}
 
-	// Access token: 1 hour, Refresh token: 30 days
-	jwtManager := token.NewJWTManager(jwtSecret, 1*time.Hour, 30*24*time.Hour)
-
-	// 2. Initialize repository
+	// initialize repository
 	repository := repository.NewAuthRepository(db)
 
-	// 3. Initialize service
+	// initialize service
 	authService := service.NewAuthService(repository, transactor, jwtManager, emailSender)
 
-	// 4. Initialize handler
+	// initialize handler
 	h := handler.NewAuthHandler(authService)
 
 	auth := r.Group("/auth")

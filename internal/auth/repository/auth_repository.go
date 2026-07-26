@@ -4,6 +4,9 @@ import (
 	"context"
 	"healmata_backend/internal/auth/model"
 	dbpkg "healmata_backend/pkg/db"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type AuthRepository interface {
@@ -23,18 +26,28 @@ type AuthRepository interface {
 	InvalidateResetToken(ctx context.Context, id string) error
 }
 
-type authRepository struct {
-	db dbpkg.DBEngine
+// =======================================================================
+// consumer defines the interfaces
+type DBEngine interface {
+	Exec(ctx context.Context, sql string, arguments ...any) (commandTag pgconn.CommandTag, err error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
-func NewAuthRepository(db dbpkg.DBEngine) AuthRepository {
+// =======================================================================
+
+type authRepository struct {
+	db DBEngine
+}
+
+func NewAuthRepository(db DBEngine) *authRepository {
 	return &authRepository{
 		db: db,
 	}
 }
 
 // if it has tx in ctx ? use tx transaction : use r.db
-func (r *authRepository) getDB(ctx context.Context) dbpkg.DBEngine {
+func (r *authRepository) getDB(ctx context.Context) DBEngine {
 	if tx := dbpkg.GetTxFromContext(ctx); tx != nil {
 		return tx
 	}

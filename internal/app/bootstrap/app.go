@@ -3,15 +3,17 @@ package bootstrap
 import (
 	dbpkg "healmata_backend/pkg/db"
 	"healmata_backend/pkg/email"
+	"healmata_backend/pkg/jwt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type App struct {
 	Config      *Config
-	DB          dbpkg.DBEngine
-	Transactor  dbpkg.Transactor
-	EmailSender email.EmailSender
+	DB          *pgxpool.Pool
+	Transactor  *dbpkg.SQLTxManager
+	EmailSender *email.Sender
+	JWTManager  *jwt.JWTManager
 }
 
 func NewApp() (*App, error) {
@@ -29,6 +31,9 @@ func NewApp() (*App, error) {
 	}
 
 	// ==========================================
+	// init jwtManager
+	jwtManager := jwt.NewJWTManager(cfg.JWTSecret, cfg.JWTAccessExpiry, cfg.JWTRefreshExpiry)
+
 	// init transactor using txManager
 	txManager := dbpkg.NewSQLTxManager(db)
 
@@ -50,14 +55,12 @@ func NewApp() (*App, error) {
 		DB:          db,
 		Transactor:  txManager,
 		EmailSender: emailSender,
+		JWTManager:  jwtManager,
 	}, nil
 }
 
 func (a *App) Close() {
 	if a.DB != nil {
-		// type assert into pgxpool.Pool to call Close()
-		if pool, ok := a.DB.(*pgxpool.Pool); ok {
-			pool.Close()
-		}
+		a.DB.Close()
 	}
 }

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -13,7 +15,12 @@ type Config struct {
 	AppPort string
 	AppEnv  string
 
-	GinMode string
+	GinMode            string
+	CorsAllowedOrigins []string
+
+	JWTSecret        string
+	JWTAccessExpiry  time.Duration
+	JWTRefreshExpiry time.Duration
 
 	DBHost     string
 	DBPort     string
@@ -34,17 +41,56 @@ func LoadEnv() (*Config, error) {
 	// Không lỗi nếu không có file .env
 	_ = godotenv.Load()
 
+	// CORS config
+	corsOriginsStr := os.Getenv("CORS_ALLOWED_ORIGINS")
+	if corsOriginsStr == "" {
+		corsOriginsStr = "*"
+	}
+
+	rawOrigins := strings.Split(corsOriginsStr, ",")
+	var allowedOrigins []string
+	for _, o := range rawOrigins {
+		cleanOrigin := strings.TrimSpace(o)
+		if cleanOrigin != "" {
+			allowedOrigins = append(allowedOrigins, cleanOrigin)
+		}
+	}
+
+	// JWT config
+	accessExpiry, err := time.ParseDuration(getEnv("JWT_ACCESS_EXPIRY", "1h"))
+	if err != nil {
+		accessExpiry = 1 * time.Hour
+	}
+
+	refreshExpiry, err := time.ParseDuration(getEnv("JWT_REFRESH_EXPIRY", "720h")) // 30 days
+	if err != nil {
+		refreshExpiry = 30 * 24 * time.Hour
+	}
+
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "heal-mata-secret-key-change-me-in-production"
+	}
+
 	// string --> int for smtpPort
 	smtpPort, err := strconv.Atoi(getEnv("SMTP_PORT", "587"))
 	if err != nil {
 		smtpPort = 587 // fallback
 	}
 
+	// cfg
 	cfg := &Config{
-		AppName:    getEnv("APP_NAME", "Go Application"),
-		AppPort:    getEnv("APP_PORT", "8080"),
-		AppEnv:     getEnv("APP_ENV", "development"),
-		GinMode:    getEnv("GIN_MODE", "debug"),
+		AppName: getEnv("APP_NAME", "Go Application"),
+		AppPort: getEnv("APP_PORT", "8080"),
+		AppEnv:  getEnv("APP_ENV", "development"),
+
+		GinMode:            getEnv("GIN_MODE", "debug"),
+		CorsAllowedOrigins: allowedOrigins,
+
+		JWTSecret:        jwtSecret,
+		JWTAccessExpiry:  accessExpiry,
+		JWTRefreshExpiry: refreshExpiry,
+
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBPort:     getEnv("DB_PORT", "5432"),
 		DBUser:     os.Getenv("DB_USER"),
