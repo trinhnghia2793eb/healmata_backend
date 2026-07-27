@@ -3,9 +3,8 @@ package handler
 import (
 	"errors"
 	"healmata_backend/internal/auth/dto"
-	authErrors "healmata_backend/internal/auth/errors"
+	"healmata_backend/pkg/response"
 	"log"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
@@ -20,7 +19,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	} else {
 		var fallbackReq dto.LoginRequestDTO
 		if err := c.ShouldBindJSON(&fallbackReq); err != nil {
-			authErrors.ReturnAppError(c, validationErr.InvalidJson)
+			response.Error(c, validationErr.InvalidJson)
 			return
 		}
 		req = &fallbackReq
@@ -29,20 +28,16 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	// 2. Call the service layer
 	resp, err := h.service.Login(c.Request.Context(), req, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
-		var appErr *authErrors.AppError
+		var appErr *response.AppError
 		if errors.As(err, &appErr) {
-			authErrors.ReturnAppError(c, appErr)
+			response.Error(c, appErr)
 			return
 		}
 
 		log.Printf("[Login] Unexpected error: %v", err)
-		authErrors.ReturnAppError(c, validationErr.InternalError)
+		response.Error(c, validationErr.InternalError)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    resp,
-		"message": "LOGIN_SUCCESS",
-	})
+	response.Success(c, resp, "LOGIN_SUCCESS")
 }

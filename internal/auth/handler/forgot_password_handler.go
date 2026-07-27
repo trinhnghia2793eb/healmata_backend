@@ -3,12 +3,11 @@ package handler
 import (
 	"errors"
 	"log"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	"healmata_backend/internal/auth/dto"
-	authErrors "healmata_backend/internal/auth/errors"
+	"healmata_backend/pkg/response"
 )
 
 // forgot password
@@ -20,7 +19,7 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 	} else {
 		var fallbackReq dto.ForgotPasswordRequestDTO
 		if err := c.ShouldBindJSON(&fallbackReq); err != nil {
-			authErrors.ReturnAppError(c, validationErr.InvalidJson)
+			response.Error(c, validationErr.InvalidJson)
 			return
 		}
 		req = &fallbackReq
@@ -28,22 +27,18 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 
 	resp, err := h.service.ForgotPassword(c.Request.Context(), req)
 	if err != nil {
-		var appErr *authErrors.AppError
+		var appErr *response.AppError
 		if errors.As(err, &appErr) {
-			authErrors.ReturnAppError(c, appErr)
+			response.Error(c, appErr)
 			return
 		}
 
 		log.Printf("[ForgotPassword] Unexpected error: %v", err)
-		authErrors.ReturnAppError(c, validationErr.InternalError)
+		response.Error(c, validationErr.InternalError)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    resp,
-		"message": "OTP_SENT",
-	})
+	response.Success(c, resp, "OTP_SENT")
 }
 
 // verify reset OTP
@@ -55,7 +50,7 @@ func (h *AuthHandler) VerifyResetOtp(c *gin.Context) {
 	} else {
 		var fallbackReq dto.VerifyResetOtpRequestDTO
 		if err := c.ShouldBindJSON(&fallbackReq); err != nil {
-			authErrors.ReturnAppError(c, validationErr.InvalidJson)
+			response.Error(c, validationErr.InvalidJson)
 			return
 		}
 		req = &fallbackReq
@@ -63,22 +58,18 @@ func (h *AuthHandler) VerifyResetOtp(c *gin.Context) {
 
 	resp, err := h.service.VerifyResetOtp(c.Request.Context(), req)
 	if err != nil {
-		var appErr *authErrors.AppError
+		var appErr *response.AppError
 		if errors.As(err, &appErr) {
-			authErrors.ReturnAppError(c, appErr)
+			response.Error(c, appErr)
 			return
 		}
 
 		log.Printf("[VerifyResetOtp] Unexpected error: %v", err)
-		authErrors.ReturnAppError(c, validationErr.InternalError)
+		response.Error(c, validationErr.InternalError)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    resp,
-		"message": "OTP_VERIFIED",
-	})
+	response.Success(c, resp, "OTP_VERIFIED")
 }
 
 // reset user password
@@ -91,7 +82,7 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	} else {
 		var fallbackReq dto.ResetPasswordRequestDTO
 		if err := c.ShouldBindJSON(&fallbackReq); err != nil {
-			authErrors.ReturnAppError(c, validationErr.InvalidJson)
+			response.Error(c, validationErr.InvalidJson)
 			return
 		}
 		req = &fallbackReq
@@ -99,20 +90,16 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 
 	resp, err := h.service.ResetPassword(c.Request.Context(), req)
 	if err != nil {
-		var appErr *authErrors.AppError
+		var appErr *response.AppError
 		if errors.As(err, &appErr) {
-			authErrors.ReturnAppError(c, appErr)
+			response.Error(c, appErr)
 			return
 		}
 
 		log.Printf("[ResetPassword] Unexpected error: %v", err)
-		authErrors.ReturnAppError(c, validationErr.InternalError)
+		response.Error(c, validationErr.InternalError)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    resp,
-		"message": "PASSWORD_RESET",
-	})
+	response.Success(c, resp, "PASSWORD_RESET")
 }

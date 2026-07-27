@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -14,6 +15,18 @@ var (
 	emailRegex    = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 	phoneRegex    = regexp.MustCompile(`^\+?[0-9]{9,15}$`)
 )
+
+func init() {
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		v.RegisterTagNameFunc(func(fld reflect.StructField) string {
+			name := strings.SplitN(fld.Tag.Get("json"), ",", 2)[0]
+			if name == "-" {
+				return ""
+			}
+			return name
+		})
+	}
+}
 
 // ValidateFullName chặn chuỗi rỗng sau khi trim và chặn ký tự đặc biệt
 func ValidateFullName(fl validator.FieldLevel) bool {

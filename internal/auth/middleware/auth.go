@@ -20,7 +20,7 @@ func ValidateRegister() gin.HandlerFunc {
 		var req dto.RegisterRequestDTO
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			authErrors.ReturnValidationError(c, err)
+			authErrors.HandleValidationError(c, err)
 			return
 		}
 
@@ -38,7 +38,7 @@ func ValidateLogin() gin.HandlerFunc {
 		var req dto.LoginRequestDTO
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			authErrors.ReturnValidationError(c, err)
+			authErrors.HandleValidationError(c, err)
 			return
 		}
 
@@ -55,7 +55,7 @@ func ValidateForgotPassword() gin.HandlerFunc {
 		var req dto.ForgotPasswordRequestDTO
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			authErrors.ReturnValidationError(c, err)
+			authErrors.HandleValidationError(c, err)
 			return
 		}
 
@@ -72,7 +72,7 @@ func ValidateVerifyResetOtp() gin.HandlerFunc {
 		var req dto.VerifyResetOtpRequestDTO
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			authErrors.ReturnValidationError(c, err)
+			authErrors.HandleValidationError(c, err)
 			return
 		}
 
@@ -90,7 +90,7 @@ func ValidateResetPassword() gin.HandlerFunc {
 		var req dto.ResetPasswordRequestDTO
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			authErrors.ReturnValidationError(c, err)
+			authErrors.HandleValidationError(c, err)
 			return
 		}
 
