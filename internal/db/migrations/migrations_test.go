@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"healmata_backend/internal/db/testhelper"
+	"healmata_backend/internal/testutils"
 )
 
 // pgErrCode extracts the PostgreSQL error code string from a pgx error.
@@ -38,7 +38,7 @@ func pgErrCode(err error) string {
 
 // TC-BE-GO-002-003 — Duplicate Email
 func TestUsers_EmailUnique_CaseInsensitive(t *testing.T) {
-	pool := testhelper.SetupTestDB(t)
+	pool := testutils.SetupTestDB(t)
 	ctx := context.Background()
 
 	_, err := pool.Exec(ctx,
@@ -57,7 +57,7 @@ func TestUsers_EmailUnique_CaseInsensitive(t *testing.T) {
 
 // TC-BE-GO-002-004 — Duplicate Phone
 func TestUsers_PhoneUnique(t *testing.T) {
-	pool := testhelper.SetupTestDB(t)
+	pool := testutils.SetupTestDB(t)
 	ctx := context.Background()
 
 	_, err := pool.Exec(ctx,
@@ -80,7 +80,7 @@ func TestUsers_PhoneUnique(t *testing.T) {
 
 // TC-BE-GO-002-005 — Foreign Key Social Account
 func TestSocialAccounts_FK_InvalidUser(t *testing.T) {
-	pool := testhelper.SetupTestDB(t)
+	pool := testutils.SetupTestDB(t)
 	ctx := context.Background()
 
 	_, err := pool.Exec(ctx,
@@ -94,7 +94,7 @@ func TestSocialAccounts_FK_InvalidUser(t *testing.T) {
 
 // TC-BE-GO-002-005-001 — Provider Unique
 func TestSocialAccounts_ProviderUnique(t *testing.T) {
-	pool := testhelper.SetupTestDB(t)
+	pool := testutils.SetupTestDB(t)
 	ctx := context.Background()
 
 	var userID string
@@ -147,7 +147,7 @@ func TestSocialAccounts_ProviderUnique(t *testing.T) {
 }
 
 func TestSocialAccounts_CompositeUniqueConstraint(t *testing.T) {
-	pool := testhelper.SetupTestDB(t)
+	pool := testutils.SetupTestDB(t)
 	ctx := context.Background()
 
 	var userA, userB string
@@ -196,7 +196,7 @@ func TestSocialAccounts_CompositeUniqueConstraint(t *testing.T) {
 // TestSocialAccounts_Cascade_UserDelete verifies ON DELETE CASCADE:
 // deleting a user must automatically remove all linked social_accounts.
 func TestSocialAccounts_Cascade_UserDelete(t *testing.T) {
-	pool := testhelper.SetupTestDB(t)
+	pool := testutils.SetupTestDB(t)
 	ctx := context.Background()
 
 	var userID string
@@ -231,7 +231,7 @@ func TestSocialAccounts_Cascade_UserDelete(t *testing.T) {
 // TestRefreshTokens_FK_InvalidUser verifies that a refresh_token with a
 // non-existent user_id is rejected by the FK constraint.
 func TestRefreshTokens_FK_InvalidUser(t *testing.T) {
-	pool := testhelper.SetupTestDB(t)
+	pool := testutils.SetupTestDB(t)
 	ctx := context.Background()
 
 	_, err := pool.Exec(ctx,
@@ -248,7 +248,7 @@ func TestRefreshTokens_FK_InvalidUser(t *testing.T) {
 // TestRefreshTokens_Cascade_UserDelete verifies ON DELETE CASCADE:
 // deleting a user must automatically remove all linked refresh_tokens.
 func TestRefreshTokens_Cascade_UserDelete(t *testing.T) {
-	pool := testhelper.SetupTestDB(t)
+	pool := testutils.SetupTestDB(t)
 	ctx := context.Background()
 
 	var userID string
@@ -303,7 +303,7 @@ func setupUserAndToken(t *testing.T, ctx context.Context, pool *pgxpool.Pool, la
 // TestUserSessions_FK_InvalidUser verifies that a session with a
 // non-existent user_id is rejected by the FK constraint.
 func TestUserSessions_FK_InvalidUser(t *testing.T) {
-	pool := testhelper.SetupTestDB(t)
+	pool := testutils.SetupTestDB(t)
 	ctx := context.Background()
 
 	_, err := pool.Exec(ctx,
@@ -321,7 +321,7 @@ func TestUserSessions_FK_InvalidUser(t *testing.T) {
 // TestUserSessions_FK_InvalidRefreshToken verifies that a session with a valid
 // user_id but non-existent refresh_token_id is rejected by the FK constraint.
 func TestUserSessions_FK_InvalidRefreshToken(t *testing.T) {
-	pool := testhelper.SetupTestDB(t)
+	pool := testutils.SetupTestDB(t)
 	ctx := context.Background()
 
 	var userID string
@@ -346,7 +346,7 @@ func TestUserSessions_FK_InvalidRefreshToken(t *testing.T) {
 // TestUserSessions_Cascade_UserDelete verifies that deleting a user cascades
 // and removes all sessions belonging to that user.
 func TestUserSessions_Cascade_UserDelete(t *testing.T) {
-	pool := testhelper.SetupTestDB(t)
+	pool := testutils.SetupTestDB(t)
 	ctx := context.Background()
 
 	userID, tokenID := setupUserAndToken(t, ctx, pool, "UserCascade")
@@ -373,7 +373,7 @@ func TestUserSessions_Cascade_UserDelete(t *testing.T) {
 // TestUserSessions_Cascade_TokenDelete verifies that deleting a refresh_token
 // cascades and removes all sessions linked to that token.
 func TestUserSessions_Cascade_TokenDelete(t *testing.T) {
-	pool := testhelper.SetupTestDB(t)
+	pool := testutils.SetupTestDB(t)
 	ctx := context.Background()
 
 	userID, tokenID := setupUserAndToken(t, ctx, pool, "TokenCascade")

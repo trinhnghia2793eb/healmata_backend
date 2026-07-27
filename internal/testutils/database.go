@@ -1,7 +1,4 @@
-// Package testhelper provides shared utilities for database integration tests.
-// It sets up a real PostgreSQL connection and applies Goose migrations,
-// then tears everything down after the test completes.
-package testhelper
+package testutils
 
 import (
 	"context"
@@ -14,17 +11,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/jackc/pgx/v5/stdlib" // pgx driver for database/sql (used by Goose)
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
 	"github.com/pressly/goose/v3"
-
-	"healmata_backend/internal/app/router"
-	dbpkg "healmata_backend/pkg/db"
 )
 
-// loadDotEnv attempts to find and load the .env file from the project root.
+var (
+	dbSetupOnce sync.Once
+	globalPool  *pgxpool.Pool
+)
+
 func loadDotEnv() {
 	dir, _ := os.Getwd()
 	for {
@@ -41,14 +38,11 @@ func loadDotEnv() {
 	}
 }
 
-// migrationsDir returns the absolute path to the migrations folder,
-// calculated relative to this source file so it works regardless of
-// which directory `go test` is invoked from.
 func migrationsDir() string {
 	// runtime.Caller(0) gives the path of THIS file at compile time.
 	_, filename, _, _ := runtime.Caller(0)
 	// Go up from testhelper/ (which is in internal/app/db/testhelper/) to internal/app/db/migrations/
-	root := filepath.Join(filepath.Dir(filename), "..", "migrations")
+	root := filepath.Join(filepath.Dir(filename), "..", "db\\migrations")
 	abs, err := filepath.Abs(root)
 	if err != nil {
 		panic("testhelper: cannot resolve migrations dir: " + err.Error())
@@ -56,7 +50,6 @@ func migrationsDir() string {
 	return abs
 }
 
-// getEnv returns the env var value or a fallback default.
 func getEnv(key, fallback string) string {
 	loadDotEnv()
 	if v := os.Getenv(key); v != "" {
@@ -65,9 +58,6 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-// dsn builds a PostgreSQL DSN from environment variables.
-// Reads TEST_DB_* first; falls back to DB_* so the same .env works
-// for both app and tests.
 func dsn() string {
 	host := getEnv("TEST_DB_HOST", getEnv("DB_HOST", "localhost"))
 	port := getEnv("TEST_DB_PORT", getEnv("DB_PORT", "5432"))
@@ -82,17 +72,9 @@ func dsn() string {
 	)
 }
 
-// =======================================================================
-// setupTestDB
-var (
-	dbSetupOnce sync.Once
-	globalPool  *pgxpool.Pool
-)
-
 func SetupTestDB(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 
-	// =======================================================================
 	// 1. Chỉ chạy Migration và tạo Pool đúng 1 lần duy nhất
 	dbSetupOnce.Do(func() {
 		connStr := dsn()
@@ -138,7 +120,6 @@ func TruncateTables(t *testing.T, pool *pgxpool.Pool) {
 	defer cancel()
 
 	// Liệt kê các bảng cần dọn dẹp (sử dụng CASCADE để tự động clear các bảng có khóa ngoại)
-	// Dựa theo cấu trúc DB của bạn, mình đã đưa sẵn 5 bảng chính
 	query := `TRUNCATE TABLE users, social_accounts, refresh_tokens, otp_requests, user_sessions CASCADE;`
 
 	_, err := pool.Exec(ctx, query)
@@ -146,37 +127,3 @@ func TruncateTables(t *testing.T, pool *pgxpool.Pool) {
 		t.Fatalf("testhelper: failed to truncate tables: %v", err)
 	}
 }
-
-// =======================================================================
-// test router
-func SetupTestRouter(pool *pgxpool.Pool, emailSender *MockEmailSender) *gin.Engine {
-	r := gin.New()
-
-	txManager := dbpkg.NewSQLTxManager(pool)
-
-	deps := router.Dependencies{
-		DB:          pool,
-		Transactor:  txManager,
-		EmailSender: emailSender,
-	}
-
-	router.RegisterRoutes(r, deps)
-
-	return r
-}
-
-// =======================================================================
-// email sender
-type MockEmailSender struct{}
-
-func NewMockEmailSender() *MockEmailSender {
-	return &MockEmailSender{}
-}
-
-func (m *MockEmailSender) SendOTP(to string, otpCode string) error {
-	// Chỉ in ra log để biết là hàm đã được gọi, không gửi email thực
-	fmt.Printf("[Test] Mock Email: Gửi OTP %s tới %s\n", otpCode, to)
-	return nil
-}
-
-// =======================================================================
