@@ -1,8 +1,5 @@
 package handler_test
 
-// emailSender := testhelper.NewMockEmailSender()
-// 				router.RegisterRoutes(r, pool, emailSender)
-
 import (
 	"bytes"
 	"context"
@@ -17,9 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
-	"healmata_backend/internal/app/router"
 	"healmata_backend/internal/auth/dto"
-	"healmata_backend/internal/db/testhelper"
+	"healmata_backend/internal/testutils"
 )
 
 func TestRegister(t *testing.T) {
@@ -56,10 +52,14 @@ func TestRegister(t *testing.T) {
 
 		for _, tc := range tests {
 			t.Run(tc.name, func(t *testing.T) {
-				pool := testhelper.SetupTestDB(t)
-				r := gin.New()
-				emailSender := testhelper.NewMockEmailSender()
-				router.RegisterRoutes(r, pool, emailSender)
+				//=======================================================================
+				// 1. Setup DB và Mock
+				pool := testutils.SetupTestDB(t)
+				emailSender := testutils.NewMockEmailSender()
+
+				// 2. Khởi tạo test router
+				r := testutils.SetupTestRouter(pool, emailSender)
+				//=======================================================================
 
 				bodyBytes, err := json.Marshal(tc.reqBody)
 				require.NoError(t, err)
@@ -115,12 +115,13 @@ func TestRegister(t *testing.T) {
 
 	t.Run("Failure cases", func(t *testing.T) {
 		tests := []struct {
-			name         string
-			reqBody      dto.RegisterRequestDTO
-			setupFunc    func(t *testing.T, pool *pgxpool.Pool)
-			expectedCode string
-			expectedMsg  string
-			expectedHTTP int
+			name            string
+			reqBody         dto.RegisterRequestDTO
+			setupFunc       func(t *testing.T, pool *pgxpool.Pool)
+			isValidationErr bool
+			expectedCode    string
+			expectedMsg     string
+			expectedHTTP    int
 		}{
 			{
 				name: "Duplicate Email",
@@ -137,9 +138,10 @@ func TestRegister(t *testing.T) {
 					`, "Existing User", "existing@example.com", "dummyhash")
 					require.NoError(t, err)
 				},
-				expectedCode: "AUTH_REG_001",
-				expectedMsg:  "EMAIL_EXISTS",
-				expectedHTTP: http.StatusConflict,
+				isValidationErr: false,
+				expectedCode:    "AUTH_REG_001",
+				expectedMsg:     "EMAIL_EXISTS",
+				expectedHTTP:    http.StatusConflict,
 			},
 			{
 				name: "Duplicate Phone",
@@ -156,9 +158,10 @@ func TestRegister(t *testing.T) {
 					`, "Existing User", "+84901234567", "dummyhash")
 					require.NoError(t, err)
 				},
-				expectedCode: "AUTH_REG_002",
-				expectedMsg:  "PHONE_EXISTS",
-				expectedHTTP: http.StatusConflict,
+				isValidationErr: false,
+				expectedCode:    "AUTH_REG_002",
+				expectedMsg:     "PHONE_EXISTS",
+				expectedHTTP:    http.StatusConflict,
 			},
 			{
 				name: "Password mismatch",
@@ -168,9 +171,9 @@ func TestRegister(t *testing.T) {
 					Password:        "Password123!",
 					ConfirmPassword: "DifferentPassword123!",
 				},
-				expectedCode: "AUTH_REG_007",
-				expectedMsg:  "PASSWORD_MISMATCH",
-				expectedHTTP: http.StatusUnprocessableEntity,
+				isValidationErr: true,
+				expectedCode:    "VR-CONFIRM-002",
+				expectedHTTP:    http.StatusBadRequest,
 			},
 			{
 				name: "Invalid email format",
@@ -180,9 +183,9 @@ func TestRegister(t *testing.T) {
 					Password:        "Password123!",
 					ConfirmPassword: "Password123!",
 				},
-				expectedCode: "AUTH_VAL_003",
-				expectedMsg:  "INVALID_EMAIL",
-				expectedHTTP: http.StatusUnprocessableEntity,
+				isValidationErr: true,
+				expectedCode:    "VR-ID-002",
+				expectedHTTP:    http.StatusBadRequest,
 			},
 			{
 				name: "Invalid phone format",
@@ -192,9 +195,9 @@ func TestRegister(t *testing.T) {
 					Password:        "Password123!",
 					ConfirmPassword: "Password123!",
 				},
-				expectedCode: "AUTH_VAL_004",
-				expectedMsg:  "INVALID_PHONE",
-				expectedHTTP: http.StatusUnprocessableEntity,
+				isValidationErr: true,
+				expectedCode:    "VR-ID-002",
+				expectedHTTP:    http.StatusBadRequest,
 			},
 			{
 				name: "Invalid name length",
@@ -204,18 +207,17 @@ func TestRegister(t *testing.T) {
 					Password:        "Password123!",
 					ConfirmPassword: "Password123!",
 				},
-				expectedCode: "AUTH_REG_004",
-				expectedMsg:  "INVALID_NAME",
-				expectedHTTP: http.StatusUnprocessableEntity,
+				isValidationErr: true,
+				expectedCode:    "VR-NAME-004",
+				expectedHTTP:    http.StatusBadRequest,
 			},
 		}
 
 		for _, tc := range tests {
 			t.Run(tc.name, func(t *testing.T) {
-				pool := testhelper.SetupTestDB(t)
-				r := gin.New()
-				emailSender := testhelper.NewMockEmailSender()
-				router.RegisterRoutes(r, pool, emailSender)
+				pool := testutils.SetupTestDB(t)
+				emailSender := testutils.NewMockEmailSender()
+				r := testutils.SetupTestRouter(pool, emailSender)
 
 				if tc.setupFunc != nil {
 					tc.setupFunc(t, pool)
@@ -239,9 +241,19 @@ func TestRegister(t *testing.T) {
 
 				assert.False(t, resp["success"].(bool))
 				errMap := resp["error"].(map[string]interface{})
-				assert.Equal(t, tc.expectedCode, errMap["code"])
-				if tc.expectedMsg != "" {
-					assert.Equal(t, tc.expectedMsg, errMap["message"])
+
+				// Xử lý logic check lỗi tùy theo loại lỗi (Validation vs Business)
+				if tc.isValidationErr {
+					assert.Equal(t, "VALIDATION_ERROR", errMap["code"])
+					details := errMap["details"].([]interface{})
+					assert.NotEmpty(t, details)
+					firstDetail := details[0].(map[string]interface{})
+					assert.Equal(t, tc.expectedCode, firstDetail["code"])
+				} else {
+					assert.Equal(t, tc.expectedCode, errMap["code"])
+					if tc.expectedMsg != "" {
+						assert.Equal(t, tc.expectedMsg, errMap["message"])
+					}
 				}
 			})
 		}
@@ -297,10 +309,9 @@ func TestLogin(t *testing.T) {
 
 		for _, tc := range tests {
 			t.Run(tc.name, func(t *testing.T) {
-				pool := testhelper.SetupTestDB(t)
-				r := gin.New()
-				emailSender := testhelper.NewMockEmailSender()
-				router.RegisterRoutes(r, pool, emailSender)
+				pool := testutils.SetupTestDB(t)
+				emailSender := testutils.NewMockEmailSender()
+				r := testutils.SetupTestRouter(pool, emailSender)
 
 				if tc.setupFunc != nil {
 					tc.setupFunc(t, pool)
@@ -335,12 +346,13 @@ func TestLogin(t *testing.T) {
 
 	t.Run("Failure cases", func(t *testing.T) {
 		tests := []struct {
-			name         string
-			setupFunc    func(t *testing.T, pool *pgxpool.Pool)
-			reqBody      dto.LoginRequestDTO
-			expectedCode string
-			expectedMsg  string
-			expectedHTTP int
+			name            string
+			setupFunc       func(t *testing.T, pool *pgxpool.Pool)
+			reqBody         dto.LoginRequestDTO
+			isValidationErr bool
+			expectedCode    string
+			expectedMsg     string
+			expectedHTTP    int
 		}{
 			{
 				name: "Invalid credentials (wrong password)",
@@ -355,9 +367,10 @@ func TestLogin(t *testing.T) {
 					Identifier: "testlogin@example.com",
 					Password:   "WrongPassword!",
 				},
-				expectedCode: "AUTH_LOGIN_001",
-				expectedMsg:  "INVALID_CREDENTIAL",
-				expectedHTTP: http.StatusUnauthorized,
+				isValidationErr: false,
+				expectedCode:    "AUTH_LOGIN_001",
+				expectedMsg:     "INVALID_CREDENTIAL",
+				expectedHTTP:    http.StatusUnauthorized,
 			},
 			{
 				name: "User not found",
@@ -365,9 +378,10 @@ func TestLogin(t *testing.T) {
 					Identifier: "nonexistent@example.com",
 					Password:   "Password123!",
 				},
-				expectedCode: "AUTH_LOGIN_002",
-				expectedMsg:  "USER_NOT_FOUND",
-				expectedHTTP: http.StatusNotFound,
+				isValidationErr: false,
+				expectedCode:    "AUTH_LOGIN_002",
+				expectedMsg:     "USER_NOT_FOUND",
+				expectedHTTP:    http.StatusNotFound,
 			},
 			{
 				name: "User disabled",
@@ -382,9 +396,10 @@ func TestLogin(t *testing.T) {
 					Identifier: "testlogin@example.com",
 					Password:   "Password123!",
 				},
-				expectedCode: "AUTH_LOGIN_003",
-				expectedMsg:  "USER_DISABLED",
-				expectedHTTP: http.StatusForbidden,
+				isValidationErr: false,
+				expectedCode:    "AUTH_LOGIN_003",
+				expectedMsg:     "USER_DISABLED",
+				expectedHTTP:    http.StatusForbidden,
 			},
 			{
 				name: "Validation error (invalid email format)",
@@ -392,9 +407,9 @@ func TestLogin(t *testing.T) {
 					Identifier: "invalid-email@",
 					Password:   "Password123!",
 				},
-				expectedCode: "AUTH_VAL_003",
-				expectedMsg:  "INVALID_EMAIL",
-				expectedHTTP: http.StatusUnprocessableEntity,
+				isValidationErr: true,
+				expectedCode:    "VR-ID-002",
+				expectedHTTP:    http.StatusBadRequest,
 			},
 			{
 				name: "Validation error (invalid password format)",
@@ -402,18 +417,17 @@ func TestLogin(t *testing.T) {
 					Identifier: "testlogin@example.com",
 					Password:   "short",
 				},
-				expectedCode: "AUTH_VAL_005",
-				expectedMsg:  "INVALID_PASSWORD",
-				expectedHTTP: http.StatusUnprocessableEntity,
+				isValidationErr: true,
+				expectedCode:    "VR-PWD-002",
+				expectedHTTP:    http.StatusBadRequest,
 			},
 		}
 
 		for _, tc := range tests {
 			t.Run(tc.name, func(t *testing.T) {
-				pool := testhelper.SetupTestDB(t)
-				r := gin.New()
-				emailSender := testhelper.NewMockEmailSender()
-				router.RegisterRoutes(r, pool, emailSender)
+				pool := testutils.SetupTestDB(t)
+				emailSender := testutils.NewMockEmailSender()
+				r := testutils.SetupTestRouter(pool, emailSender)
 
 				if tc.setupFunc != nil {
 					tc.setupFunc(t, pool)
@@ -437,8 +451,17 @@ func TestLogin(t *testing.T) {
 
 				assert.False(t, resp["success"].(bool))
 				errMap := resp["error"].(map[string]interface{})
-				assert.Equal(t, tc.expectedCode, errMap["code"])
-				assert.Equal(t, tc.expectedMsg, errMap["message"])
+
+				if tc.isValidationErr {
+					assert.Equal(t, "VALIDATION_ERROR", errMap["code"])
+					details := errMap["details"].([]interface{})
+					assert.NotEmpty(t, details)
+					firstDetail := details[0].(map[string]interface{})
+					assert.Equal(t, tc.expectedCode, firstDetail["code"])
+				} else {
+					assert.Equal(t, tc.expectedCode, errMap["code"])
+					assert.Equal(t, tc.expectedMsg, errMap["message"])
+				}
 			})
 		}
 	})

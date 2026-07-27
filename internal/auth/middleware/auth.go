@@ -1,14 +1,12 @@
 package middleware
 
 import (
-	"errors"
 	"strings"
 
 	"healmata_backend/internal/auth/dto"
 	authErrors "healmata_backend/internal/auth/errors"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 )
 
 var validationErr = authErrors.Validation
@@ -22,37 +20,7 @@ func ValidateRegister() gin.HandlerFunc {
 		var req dto.RegisterRequestDTO
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			var ve validator.ValidationErrors
-
-			if errors.As(err, &ve) {
-				for _, fe := range ve {
-					switch fe.Field() {
-					case "fullName":
-						authErrors.ReturnAppError(c, registerErr.InvalidName)
-						c.Abort()
-						return
-					case "password":
-						authErrors.ReturnAppError(c, registerErr.InvalidPasswordReg)
-						c.Abort()
-						return
-					case "confirmPassword":
-						authErrors.ReturnAppError(c, registerErr.ConfirmPasswordMismatch)
-						c.Abort()
-						return
-					case "identifier":
-						if strings.Contains(req.Identifier, "@") {
-							authErrors.ReturnAppError(c, validationErr.InvalidEmail)
-						} else {
-							authErrors.ReturnAppError(c, validationErr.InvalidPhone)
-						}
-						c.Abort()
-						return
-					}
-				}
-			}
-
-			authErrors.ReturnAppError(c, validationErr.InvalidJson)
-			c.Abort()
+			authErrors.ReturnValidationError(c, err)
 			return
 		}
 
@@ -70,29 +38,7 @@ func ValidateLogin() gin.HandlerFunc {
 		var req dto.LoginRequestDTO
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			var ve validator.ValidationErrors
-
-			if errors.As(err, &ve) {
-				for _, fe := range ve {
-					switch fe.Field() {
-					case "identifier":
-						if strings.Contains(req.Identifier, "@") {
-							authErrors.ReturnAppError(c, validationErr.InvalidEmail)
-						} else {
-							authErrors.ReturnAppError(c, validationErr.InvalidPhone)
-						}
-						c.Abort()
-						return
-					case "password":
-						authErrors.ReturnAppError(c, validationErr.InvalidPassword)
-						c.Abort()
-						return
-					}
-				}
-			}
-
-			authErrors.ReturnAppError(c, validationErr.InvalidJson)
-			c.Abort()
+			authErrors.ReturnValidationError(c, err)
 			return
 		}
 
@@ -108,28 +54,8 @@ func ValidateForgotPassword() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req dto.ForgotPasswordRequestDTO
 
-		// Bind JSON và kích hoạt bộ validator
 		if err := c.ShouldBindJSON(&req); err != nil {
-			var ve validator.ValidationErrors
-
-			// Nếu lỗi do thư viện validator bắt được
-			if errors.As(err, &ve) {
-				for _, fe := range ve {
-					switch fe.Field() {
-					case "identifier":
-						if strings.Contains(req.Identifier, "@") {
-							authErrors.ReturnAppError(c, validationErr.InvalidEmail)
-						} else {
-							authErrors.ReturnAppError(c, validationErr.InvalidPhone)
-						}
-						c.Abort()
-						return
-					}
-				}
-			}
-
-			authErrors.ReturnAppError(c, validationErr.InvalidJson)
-			c.Abort()
+			authErrors.ReturnValidationError(c, err)
 			return
 		}
 
@@ -146,25 +72,7 @@ func ValidateVerifyResetOtp() gin.HandlerFunc {
 		var req dto.VerifyResetOtpRequestDTO
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			var ve validator.ValidationErrors
-
-			if errors.As(err, &ve) {
-				for _, fe := range ve {
-					switch fe.Field() {
-					case "Otp":
-						authErrors.ReturnAppError(c, verifyOtpErr.InvalidOtp)
-						c.Abort()
-						return
-					case "ResetRequestId":
-						authErrors.ReturnAppError(c, verifyOtpErr.InternalError)
-						c.Abort()
-						return
-					}
-				}
-			}
-
-			authErrors.ReturnAppError(c, validationErr.InvalidJson)
-			c.Abort()
+			authErrors.ReturnValidationError(c, err)
 			return
 		}
 
@@ -182,29 +90,7 @@ func ValidateResetPassword() gin.HandlerFunc {
 		var req dto.ResetPasswordRequestDTO
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			var ve validator.ValidationErrors
-
-			if errors.As(err, &ve) {
-				for _, fe := range ve {
-					switch fe.Field() {
-					case "newPassword":
-						authErrors.ReturnAppError(c, resetPasswordErr.PasswordInvalid)
-						c.Abort()
-						return
-					case "confirmPassword":
-						authErrors.ReturnAppError(c, resetPasswordErr.PasswordMismatch)
-						c.Abort()
-						return
-					case "resetToken":
-						authErrors.ReturnAppError(c, resetPasswordErr.ResetTokenExpired)
-						c.Abort()
-						return
-					}
-				}
-			}
-
-			authErrors.ReturnAppError(c, validationErr.InvalidJson)
-			c.Abort()
+			authErrors.ReturnValidationError(c, err)
 			return
 		}
 
