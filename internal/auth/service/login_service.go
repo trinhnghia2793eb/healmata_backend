@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"healmata_backend/internal/auth/dto"
-	authErrors "healmata_backend/internal/auth/errors"
 	"healmata_backend/internal/auth/repository"
+	"healmata_backend/pkg/response"
 	"log"
 	"time"
 
@@ -32,7 +32,7 @@ func (s *authService) Login(ctx context.Context, req *dto.LoginRequestDTO, clien
 		return nil, loginErr.InvalidCredential
 	}
 
-	var response *dto.LoginResponseDTO
+	var resp *dto.LoginResponseDTO
 	// 4. Generate JWT tokens and persist sessions inside a database transaction
 	err = s.transactor.WithTransaction(ctx, func(txCtx context.Context) error {
 		// A. Create JWTs
@@ -66,17 +66,17 @@ func (s *authService) Login(ctx context.Context, req *dto.LoginRequestDTO, clien
 			return err
 		}
 
-		response = &dto.LoginResponseDTO{AccessToken: accessToken, RefreshToken: rawRefreshToken, ExpiresIn: expiresIn}
+		resp = &dto.LoginResponseDTO{AccessToken: accessToken, RefreshToken: rawRefreshToken, ExpiresIn: expiresIn}
 
 		return nil
 	})
 	if err != nil {
 		log.Printf("[Login Service] underlying error: %v", err)
-		var appErr *authErrors.AppError
+		var appErr *response.AppError
 		if errors.As(err, &appErr) {
 			return nil, appErr
 		}
 		return nil, loginErr.InternalError
 	}
-	return response, nil
+	return resp, nil
 }

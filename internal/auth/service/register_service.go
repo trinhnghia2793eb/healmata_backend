@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"healmata_backend/internal/auth/dto"
-	authErrors "healmata_backend/internal/auth/errors"
 	"healmata_backend/internal/auth/repository"
+	"healmata_backend/pkg/response"
+
 	"log"
 	"strings"
 	"time"
@@ -48,7 +49,7 @@ func (s *authService) Register(ctx context.Context, req *dto.RegisterRequestDTO,
 		PasswordHash: string(hashedPassword),
 	}
 
-	var response *dto.RegisterResponseDTO
+	var resp *dto.RegisterResponseDTO
 	// 5. Run writes inside a transaction
 	err = s.transactor.WithTransaction(ctx, func(txCtx context.Context) error {
 		// A. Create User record
@@ -102,21 +103,21 @@ func (s *authService) Register(ctx context.Context, req *dto.RegisterRequestDTO,
 			return err
 		}
 
-		response = &dto.RegisterResponseDTO{AccessToken: accessToken, RefreshToken: rawRefreshToken, ExpiresIn: expiresIn}
+		resp = &dto.RegisterResponseDTO{AccessToken: accessToken, RefreshToken: rawRefreshToken, ExpiresIn: expiresIn}
 
 		return nil
 	})
 
 	if err != nil {
 		log.Printf("[Register Service] underlying error: %v", err)
-		var appErr *authErrors.AppError
+		var appErr *response.AppError
 		if errors.As(err, &appErr) {
 			return nil, appErr
 		}
 		return nil, registerErr.InternalError
 	}
 
-	return response, nil
+	return resp, nil
 }
 
 func nilOrStringPtr(val string) *string {

@@ -4,10 +4,11 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
-	
-	"github.com/gin-gonic/gin"
+
 	"healmata_backend/internal/app/logger"
 	"healmata_backend/pkg/response"
+
+	"github.com/gin-gonic/gin"
 )
 
 func Recovery() gin.HandlerFunc {
@@ -20,11 +21,8 @@ func Recovery() gin.HandlerFunc {
 					slog.String("stack", string(debug.Stack())),
 				)
 
-				// Return 500
-				c.AbortWithStatusJSON(
-					http.StatusInternalServerError, 
-					response.NewErrorResponse("INTERNAL_SERVER_ERROR", "Lỗi hệ thống"),
-				)
+				appErr := response.NewAppError(http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "Lỗi hệ thống")
+				response.AbortWithError(c, appErr)
 			}
 		}()
 		c.Next()
