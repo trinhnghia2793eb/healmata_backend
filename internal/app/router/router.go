@@ -4,7 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"healmata_backend/internal/app/bootstrap"
+	"healmata_backend/internal/app/config"
 	"healmata_backend/internal/app/middleware"
 	dbpkg "healmata_backend/pkg/db"
 	"healmata_backend/pkg/email"
@@ -14,7 +14,7 @@ import (
 // dependencies for router
 type Dependencies struct {
 	DB          *pgxpool.Pool
-	Config      *bootstrap.Config
+	Config      *config.Config
 	Transactor  *dbpkg.SQLTxManager
 	EmailSender *email.Sender
 	JWTManager  *jwt.JWTManager
