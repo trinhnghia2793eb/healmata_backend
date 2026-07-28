@@ -3,13 +3,14 @@ package bootstrap
 import (
 	"context"
 	"fmt"
+	"healmata_backend/internal/app/config"
 	"log"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func NewDatabase(cfg *Config) (*pgxpool.Pool, error) {
+func NewDatabase(cfg *config.Config) (*pgxpool.Pool, error) {
 
 	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",

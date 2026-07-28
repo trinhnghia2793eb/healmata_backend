@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"healmata_backend/internal/app/config"
 	dbpkg "healmata_backend/pkg/db"
 	"healmata_backend/pkg/email"
 	"healmata_backend/pkg/jwt"
@@ -9,7 +10,7 @@ import (
 )
 
 type App struct {
-	Config      *Config
+	Config      *config.Config
 	DB          *pgxpool.Pool
 	Transactor  *dbpkg.SQLTxManager
 	EmailSender *email.Sender
@@ -18,8 +19,8 @@ type App struct {
 
 func NewApp() (*App, error) {
 
-	// load .env --> return cfg
-	cfg, err := LoadEnv()
+	// load config from config folder --> return cfg
+	cfg, err := config.LoadConfig(".")
 	if err != nil {
 		return nil, err
 	}
