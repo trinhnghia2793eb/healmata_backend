@@ -1,0 +1,15 @@
+.git
+.gitignore
+.env
+.env.example
+README.md
+Makefile
+sqlc.yaml
+/internal/testutils
+**/*_test.go
+
+.docs
+/.knowns/
+/.agents/
+AGENTS.md
+KNOWNS.md
