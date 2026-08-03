@@ -5,15 +5,15 @@ services:
     container_name: healmata_backend_db
     restart: always
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: postgres_psw
-      POSTGRES_DB: healmata_backend_docker
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     ports:
       - "5433:5432" # access DB from local through DBeaver/DataGrip
     volumes:
       - pgdata:/var/lib/postgresql/data # permanent data storage; data is not lost when the container is deleted
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d healmata_backend_docker"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -28,7 +28,7 @@ services:
     command: >
       /bin/sh -c "
       go install github.com/pressly/goose/v3/cmd/goose@latest && 
-      goose -dir /migrations postgres 'postgres://admin:postgres_psw@postgres_db:5432/healmata_backend_docker?sslmode=disable' up"
+      goose -dir /migrations postgres 'postgres://${DB_USER}:${DB_PASSWORD}@postgres_db:5432/${DB_NAME}?sslmode=${DB_SSLMODE}' up"
     depends_on:
       postgres_db:
         condition: service_healthy # run migration only when DB is ready (passed healthcheck)
@@ -42,32 +42,10 @@ services:
     restart: on-failure
     ports:
       - "8080:8080" # mapping APP_PORT to outside
+    env_file:
+      - .env
     environment:
-      # app
-      - APP_PORT=8080
-      - APP_ENV=development
-      - GIN_MODE=debug
-      
-      # database config
       - DB_HOST=postgres_db
-      - DB_PORT=5432
-      - DB_USER=admin
-      - DB_PASSWORD=postgres_psw
-      - DB_NAME=healmata_backend_docker
-      - DB_SSLMODE=disable
-      
-      # JWT config
-      - JWT_SECRET=
-      - JWT_ACCESS_EXPIRY=1h
-      - JWT_REFRESH_EXPIRY=720h
-
-      # SMTP Email config
-      - SMTP_HOST=smtp.gmail.com
-      - SMTP_PORT=587
-      - SMTP_USER=
-      - SMTP_PASSWORD=
-      - MAIL_FROM_ADDRESS=
-      - MAIL_FROM_NAME=
     depends_on:
       postgres_db:
         condition: service_healthy
