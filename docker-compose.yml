@@ -1,0 +1,78 @@
+services:
+  # PostgreSQL
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: healmata_backend_db
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: postgres_psw
+      POSTGRES_DB: healmata_backend_docker
+    ports:
+      - "5433:5432" # access DB from local through DBeaver/DataGrip
+    volumes:
+      - pgdata:/var/lib/postgresql/data # permanent data storage; data is not lost when the container is deleted
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d healmata_backend_docker"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Migration (run Goose)
+  db_migration:
+    image: golang:1.26.4-alpine
+    container_name: healmata_backend_migration
+    # bring migrations files from local to container
+    volumes:
+      - ./internal/db/migrations:/migrations
+    command: >
+      /bin/sh -c "
+      go install github.com/pressly/goose/v3/cmd/goose@latest && 
+      goose -dir /migrations postgres 'postgres://admin:postgres_psw@postgres_db:5432/healmata_backend_docker?sslmode=disable' up"
+    depends_on:
+      postgres_db:
+        condition: service_healthy # run migration only when DB is ready (passed healthcheck)
+
+  # golang app service
+  api:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: healmata_backend_api
+    restart: on-failure
+    ports:
+      - "8080:8080" # mapping APP_PORT to outside
+    environment:
+      # app
+      - APP_PORT=8080
+      - APP_ENV=development
+      - GIN_MODE=debug
+      
+      # database config
+      - DB_HOST=postgres_db
+      - DB_PORT=5432
+      - DB_USER=admin
+      - DB_PASSWORD=postgres_psw
+      - DB_NAME=healmata_backend_docker
+      - DB_SSLMODE=disable
+      
+      # JWT config
+      - JWT_SECRET=8fac44b55a7c38933928b3dd3dd763f762206ff0e9d9f867fd9f6c7adc5fe23c
+      - JWT_ACCESS_EXPIRY=1h
+      - JWT_REFRESH_EXPIRY=720h
+
+      # SMTP Email config
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USER=snowmanvszombie@gmail.com
+      - SMTP_PASSWORD=xtnj qcvc uyth cutz
+      - MAIL_FROM_ADDRESS=snowmanvszombie@gmail.com
+      - MAIL_FROM_NAME=Healmata System
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      db_migration:
+        condition: service_completed_successfully # start API only when migration completed running
+
+volumes:
+  pgdata: # declare volume for DB
