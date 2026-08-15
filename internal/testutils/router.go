@@ -6,8 +6,8 @@ import (
 	"healmata_backend/internal/auth/repository"
 	"healmata_backend/internal/auth/service"
 	"healmata_backend/internal/auth/validator"
-	"healmata_backend/pkg/jwt"
 	dbpkg "healmata_backend/pkg/db"
+	"healmata_backend/pkg/jwt"
 	"time"
 
 	"github.com/gin-gonic/gin"

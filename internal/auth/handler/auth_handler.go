@@ -17,6 +17,7 @@ type AuthService interface {
 	VerifyResetOtp(ctx context.Context, req *dto.VerifyResetOtpRequestDTO) (*dto.VerifyResetOtpResponseDTO, error)
 	ResetPassword(ctx context.Context, req *dto.ResetPasswordRequestDTO) (*dto.ResetPasswordResponseDTO, error)
 }
+
 // =======================================================================
 
 type AuthHandler struct {

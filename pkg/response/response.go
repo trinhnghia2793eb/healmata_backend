@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// ======================================================================= 
+// =======================================================================
 // App error
 type ErrorDetail struct {
 	Field   string `json:"field"`
@@ -33,7 +33,7 @@ func NewAppError(httpStatus int, errorCode string, message string) *AppError {
 	}
 }
 
-// ======================================================================= 
+// =======================================================================
 // SuccessReponse & Error Response
 type SuccessResponse struct {
 	Success bool   `json:"success"`

@@ -49,7 +49,7 @@ func main() {
 
 	router.RegisterRoutes(r, deps)
 
-	// ======================================================================= 
+	// =======================================================================
 	// RUN SERVER: GRACEFUL SHUTDOWN
 	// declare http.Server instead of r.Run()
 	srv := &http.Server{
@@ -85,7 +85,7 @@ func main() {
 	if err := srv.Shutdown(ctx); err != nil {
 		logger.Log.Error("Error when shutting down", "error", err)
 	}
-	
+
 	// after srv.Shutdown() completes / timeout expires
 	// --> `main()` function terminates --> defer app.Close() triggered
 	logger.Log.Info("Server shutted down.")

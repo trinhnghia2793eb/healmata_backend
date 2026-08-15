@@ -2,7 +2,7 @@ package testutils
 
 import "fmt"
 
-type MockEmailSender struct{
+type MockEmailSender struct {
 	SendCalled bool
 }
 
